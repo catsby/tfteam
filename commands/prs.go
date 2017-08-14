@@ -162,7 +162,7 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 
 		reviews, _, err := client.PullRequests.ListReviews(ctx, owner, repo, pr.Number, nil)
 		if err != nil {
-			log.Printf("error getting review:%s")
+			log.Printf("error getting review:%s", err)
 			continue
 		}
 
