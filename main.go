@@ -31,6 +31,11 @@ func main() {
 				UI: ui,
 			}, nil
 		},
+		"notifications": func() (cli.Command, error) {
+			return &commands.NotificationsCommand{
+				UI: ui,
+			}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
