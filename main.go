@@ -36,6 +36,11 @@ func main() {
 				UI: ui,
 			}, nil
 		},
+		"notifications cleanup": func() (cli.Command, error) {
+			return &commands.NotificationsCleanupCommand{
+				UI: ui,
+			}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
