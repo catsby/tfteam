@@ -52,7 +52,7 @@ type ByNumber []*NotificationIssue
 func (a ByNumber) Len() int      { return len(a) }
 func (a ByNumber) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByNumber) Less(i, j int) bool {
-	return a[i].Number > a[j].Number
+	return a[i].Number < a[j].Number
 }
 
 func (c NotificationsCommand) Run(args []string) int {
