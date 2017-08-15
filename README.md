@@ -6,8 +6,9 @@ is just a proof of concept
 
 Install:
 
-    $ go build . -o tfteam
-    $ mv tfteam $GOPATH/bin/
+```
+$ go get -u github.com/catsby/tfteam
+```
 
 Prerequisite:
 
@@ -19,4 +20,3 @@ Personal access token from here https://github.com/settings/tokens I think it ju
 Usage:
 
     $ tfteam prs
-
