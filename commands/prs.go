@@ -78,7 +78,9 @@ func (c PRsCommand) Run(args []string) int {
 	tfIssues := []*TFPr{}
 	for _, i := range sresults.Issues {
 		if !strings.Contains(*i.HTMLURL, "terraform") {
-			continue
+			if !strings.Contains(*i.HTMLURL, "tfteam") {
+				continue
+			}
 		}
 		tfpr := TFPr{
 			User:    i.User,
