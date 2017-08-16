@@ -12,7 +12,7 @@ $ go get -u github.com/catsby/tfteam
 
 Prerequisite:
 
-Personal access token from here https://github.com/settings/tokens I think it just needs `public_repo` and `read:org`
+Personal access token from here https://github.com/settings/tokens I think it just needs `public_repo`, `read:org` and `notifications`
 
 
     $ export GITHUB_API_TOKEN=""
