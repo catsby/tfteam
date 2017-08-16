@@ -32,15 +32,19 @@ func (c NotificationsCommand) Synopsis() string {
 }
 
 type NotificationIssue struct {
-	Owner    string
-	Name     string
-	Number   int
-	URL      string
-	Reviewed bool
+	ID        string
+	Owner     string
+	Name      string
+	Number    int
+	Title     string
+	URL       string
+	Reviewed  bool
+	Closed    bool
+	IsRelease bool
 }
 
 func (n *NotificationIssue) String() string {
-	return fmt.Sprintf("https://github.com/%s/%s/issues/%d", n.Owner, n.Name, n.Number)
+	return fmt.Sprintf("%s - https://github.com/%s/%s/issues/%d", n.Title, n.Owner, n.Name, n.Number)
 }
 
 func (n *NotificationIssue) Repo() string {
@@ -62,11 +66,6 @@ func (c NotificationsCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.UI.Output("------")
-	c.UI.Output("Notifications that have no TF Team Member comment")
-	c.UI.Output("------")
-	c.UI.Output("")
-
 	// refactor, this is boilerplate
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -76,34 +75,38 @@ func (c NotificationsCommand) Run(args []string) int {
 
 	client := github.NewClient(tc)
 
-	opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
-	members, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		os.Exit(1)
-	}
-
-	// filter out junk members
-	var ml []string
-	for _, m := range members {
-		if *m.Login != "hashicorp-fossa" && *m.Login != "tf-release-bot" {
-			ml = append(ml, *m.Login)
-		}
-	}
-
 	// github.NotificationListOptions has useful attributes but for now we'll just
 	// do defauls
 	nopt := &github.NotificationListOptions{}
-	notifications, _, err := client.Activity.ListNotifications(ctx, nopt)
+	var notifications []*github.Notification
+	var lo int
+	for {
+		part, resp, err := client.Activity.ListNotifications(ctx, nopt)
+		if err != nil {
+			c.UI.Warn(fmt.Sprintf("Error listing notifications: %s", err))
+			return 1
+		}
+		notifications = append(notifications, part...)
+		if resp.NextPage == 0 {
+			break
+		}
+		nopt.Page = resp.NextPage
+		lo++
+	}
 
 	// NotificationIssues to look for
 	var nIssues []*NotificationIssue
 	// Filter out PRs/Issues that aren't involving Terraform
 	for _, n := range notifications {
-		if !strings.Contains(*n.Repository.Owner.Login, "terraform") {
-			if !strings.Contains(*n.Repository.Owner.Login, "tfteam") {
+		if !strings.Contains(*n.Repository.Name, "terraform") {
+			if !strings.Contains(*n.Repository.Name, "tfteam") {
 				continue
 			}
+		}
+
+		// We don't currently check private repos
+		if *n.Repository.Private {
+			continue
 		}
 
 		// find the number by parsing the subject url
@@ -122,17 +125,25 @@ func (c NotificationsCommand) Run(args []string) int {
 		}
 
 		ni := NotificationIssue{
+			ID:     *n.ID,
 			Owner:  *n.Repository.Owner.Login,
 			Name:   *n.Repository.Name,
 			Number: number,
 			URL:    *n.Subject.URL,
+			Title:  *n.Subject.Title,
+		}
+		// The Notifications API gives notifications for releases at an extended
+		// endpoint: owner/repo/releases/number
+		release := parts[len(parts)-2]
+		if "releases" == release {
+			ni.IsRelease = true
 		}
 		nIssues = append(nIssues, &ni)
 	}
 
 	// 5 "workers" to do things concurrently
-	count := 5
-	wgNIssues.Add(count)
+	wCount := 5
+	wgNIssues.Add(wCount)
 
 	// queue of NotificationIssues to query on the review status
 	niChan := make(chan *NotificationIssue, len(nIssues))
@@ -140,9 +151,42 @@ func (c NotificationsCommand) Run(args []string) int {
 	// recieve results from PR review queries
 	resultsChan := make(chan *NotificationIssue, len(nIssues))
 
-	// Setup go() workers
-	for gr := 1; gr <= count; gr++ {
-		go getReviewStatus(niChan, resultsChan)
+	// figure out what kind of work we're doing by looking for any flags
+	// hacky because it only reads the first arg, but probably ugly for other
+	// reasons too
+	var action string
+	var modifier string
+	if len(args) > 0 {
+		action = args[0]
+	}
+	if len(args) > 1 {
+		modifier = args[1]
+	}
+	if "--cleanup" == action {
+		dryOutput := ""
+		if modifier != "" {
+			dryOutput = " - dry run"
+		}
+		c.UI.Output("------")
+		c.UI.Output(fmt.Sprintf("%s%s", "Notifications cleanup", dryOutput))
+		c.UI.Output("------")
+		c.UI.Output("")
+
+		// Setup go() workers to mark things as viewed
+		dryRun := "--dry-run" == modifier
+		for gr := 1; gr <= wCount; gr++ {
+			go markReadIfClosed(niChan, resultsChan, dryRun)
+		}
+	} else {
+		c.UI.Output("------")
+		c.UI.Output("Notifications that have no TF Team Member comment")
+		c.UI.Output("------")
+		c.UI.Output("")
+
+		// Setup go() workers for review status, the default
+		for gr := 1; gr <= wCount; gr++ {
+			go getReviewStatus(niChan, resultsChan)
+		}
 	}
 
 	// Feed PRs into the queue
@@ -171,20 +215,42 @@ func (c NotificationsCommand) Run(args []string) int {
 
 	sort.Strings(keys)
 
+	var count int
 	for _, k := range keys {
 		niList := repoIssueMap[k]
 		// omit any repos that have zero things needing review
-		if len(niList) > 0 {
+		display := niList
+		if "--cleanup" == action {
+			display = nil
+			for _, i := range niList {
+				if i.Closed {
+					display = append(display, i)
+				}
+			}
+		}
+		if len(display) > 0 {
 			c.UI.Output(k)
 			// sub sort the issues/prs by their number
-			sort.Sort(ByNumber(niList))
-
-			for _, i := range niList {
-				c.UI.Output(fmt.Sprintf("\t- %s", i.String()))
+			sort.Sort(ByNumber(display))
+			count += len(display)
+			for _, i := range display {
+				c.UI.Output(fmt.Sprintf("  - %s", i.String()))
 			}
 			c.UI.Output("")
 		}
 	}
+	c.UI.Output(fmt.Sprintf("Total count: %d", count))
+
+	// exercise for tomorrow: tab format the output
+	// w := new(tabwriter.Writer)
+	// // Format right-aligned in space-separated columns of minimal width 5
+	// // and at least one blank of padding (so wider column entries do not
+	// // touch each other).
+	// w.Init(os.Stdout, 5, 0, 1, ' ', 0)
+	// fmt.Fprintln(w, "a\tb\tc\td\t.")
+	// fmt.Fprintln(w, "123\t12345\t1234567\t123456789\t.")
+	// fmt.Fprintln(w)
+	// w.Flush()
 
 	return 0
 }
@@ -202,39 +268,83 @@ func getReviewStatus(notificationsChan <-chan *NotificationIssue, rChan chan<- *
 	client := github.NewClient(tc)
 
 	for n := range notificationsChan {
-		comments, _, err := client.Issues.ListComments(ctx, n.Owner, n.Name, n.Number, nil)
-		if err != nil {
-			log.Printf("error getting comments:%s", err)
-			continue
-		}
+		if !n.IsRelease {
+			comments, _, err := client.Issues.ListComments(ctx, n.Owner, n.Name, n.Number, nil)
+			if err != nil {
+				log.Printf("error getting comments for (%s): %s", n.String(), err)
+				// could error if it's a private repo; right now we are scoped to only
+				// public things
+				continue
+			}
 
-		if len(comments) == 0 {
-			continue
-		}
+			if len(comments) == 0 {
+				continue
+			}
 
-		// should be dynamic but I'm lazy at this particular moment
-		teamMembers := []string{
-			"mitchellh",
-			"apparentlymart",
-			"jbardin",
-			"phinze",
-			"paddycarver",
-			"catsby",
-			"radeksimko",
-			"tombuildsstuff",
-			"grubernaut",
-			"mbfrahry",
-			"vancluever",
-		}
+			// should be dynamic but I'm lazy at this particular moment
+			teamMembers := []string{
+				"mitchellh",
+				"apparentlymart",
+				"jbardin",
+				"phinze",
+				"paddycarver",
+				"catsby",
+				"radeksimko",
+				"tombuildsstuff",
+				"grubernaut",
+				"mbfrahry",
+				"vancluever",
+			}
 
-		for _, comment := range comments {
-			for _, m := range teamMembers {
-				if m == *comment.User.Login {
-					n.Reviewed = true
-					continue
+			for _, comment := range comments {
+				for _, m := range teamMembers {
+					if m == *comment.User.Login {
+						n.Reviewed = true
+						continue
+					}
 				}
 			}
 		}
+		rChan <- n
+	}
+}
+
+// Function that marks closed issues/prs as "read"
+func markReadIfClosed(notificationsChan <-chan *NotificationIssue, rChan chan<- *NotificationIssue, dryRun bool) {
+	defer wgNIssues.Done()
+	// should pass in and reususe context I think?
+	key := os.Getenv("GITHUB_API_TOKEN")
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: key},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+
+	client := github.NewClient(tc)
+
+	for n := range notificationsChan {
+		issue, _, err := client.Issues.Get(ctx, n.Owner, n.Name, n.Number)
+		if err != nil {
+			// Error could be a glitch or the source could be private and right now
+			// the tool is only scoped for public things
+			continue
+		}
+
+		// log.Printf("issue state for (%s): %s", n.String(), *issue.State)
+		if "closed" == *issue.State {
+			if !dryRun {
+				_, err := client.Activity.MarkThreadRead(ctx, n.ID)
+				if err != nil {
+					log.Printf("Error marking (%s) Thread (%s) as read: %s", n.String(), n.ID, err)
+				} else {
+					n.Closed = true
+				}
+			} else {
+				// hack - mark it closed so we see the review of what we would close
+				n.Closed = true
+			}
+		}
+
 		rChan <- n
 	}
 }
