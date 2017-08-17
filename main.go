@@ -36,6 +36,11 @@ func main() {
 				UI: ui,
 			}, nil
 		},
+		"releases": func() (cli.Command, error) {
+			return &commands.ReleasesCommand{
+				UI: ui,
+			}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
