@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"text/tabwriter"
 
 	"golang.org/x/oauth2"
 
@@ -86,6 +87,7 @@ func (c PRsCommand) Run(args []string) int {
 			User:    i.User,
 			HTMLURL: *i.HTMLURL,
 			Number:  *i.Number,
+			Title:   *i.Title,
 		}
 		tfIssues = append(tfIssues, &tfpr)
 	}
@@ -115,9 +117,9 @@ func (c PRsCommand) Run(args []string) int {
 	close(resultsChan)
 
 	// convert results into a map of users/user prs for sorting
-	rl := make(map[string][]string)
+	rl := make(map[string][]*TFPr)
 	for r := range resultsChan {
-		rl[*r.User.Login] = append(rl[*r.User.Login], r.String())
+		rl[*r.User.Login] = append(rl[*r.User.Login], r)
 	}
 
 	// sort Team members by Alpha order sorry vancluever
@@ -128,12 +130,16 @@ func (c PRsCommand) Run(args []string) int {
 
 	sort.Strings(keys)
 
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 5, 0, 1, ' ', 0)
 	for _, k := range keys {
-		c.UI.Output(fmt.Sprintf("\n%s", k))
+		fmt.Fprintln(w, k)
 		for _, pr := range rl[k] {
-			c.UI.Output(fmt.Sprintf("\t- %s", pr))
+			c.UI.Output(fmt.Sprintf("  %s\t%s\t%s", pr.TitleTruncated(), pr.HTMLURL, pr.IsApprovedString()))
 		}
+		fmt.Fprintln(w)
 	}
+	w.Flush()
 
 	return 0
 }
