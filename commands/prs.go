@@ -135,7 +135,7 @@ func (c PRsCommand) Run(args []string) int {
 	for _, k := range keys {
 		fmt.Fprintln(w, k)
 		for _, pr := range rl[k] {
-			c.UI.Output(fmt.Sprintf("  %s\t%s\t%s", pr.TitleTruncated(), pr.HTMLURL, pr.IsApprovedString()))
+			c.UI.Output(fmt.Sprintf("%s%s\t%s", pr.IsApprovedString(), pr.TitleTruncated(), pr.HTMLURL))
 		}
 		fmt.Fprintln(w)
 	}

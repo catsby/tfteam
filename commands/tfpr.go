@@ -13,9 +13,9 @@ type TFPr struct {
 }
 
 func (tfpr *TFPr) IsApprovedString() string {
-	var approved string
+	approved := "   "
 	if tfpr.Approved {
-		approved = "✅"
+		approved = "✅  "
 	}
 	return approved
 }
