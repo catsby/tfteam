@@ -6,8 +6,10 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"golang.org/x/oauth2"
 
@@ -34,6 +36,31 @@ type RepoReleaseTag struct {
 	Owner   string
 	Name    string
 	TagName string
+	Date    *time.Time
+}
+
+// Formating for table view output, giving relative information on when the last
+// release was.
+// Ex:
+//  9 days ago
+//  59 days ago
+//  18 days ago
+//  < 24 hours
+//  59 days ago
+//  < 12 hours
+func (r *RepoReleaseTag) LastReleaseString() string {
+	since := time.Since(*r.Date)
+	rawSince := since.Hours() / 24
+	daysSince := strconv.FormatFloat(rawSince, 'f', 0, 32)
+	layout := "%s\t\t%s"
+	if daysSince == "0" {
+		return fmt.Sprintf(layout, r.Date.Format("Mon Jan 2 15:04:05 MST 2006"), "< 12 hours")
+	} else if daysSince == "1" {
+		return fmt.Sprintf(layout, r.Date.Format("Mon Jan 2 15:04:05 MST 2006"), "< 24 hours")
+	} else {
+		return fmt.Sprintf(layout, r.Date.Format("Mon Jan 2 15:04:05 MST 2006"), daysSince+" days ago")
+	}
+	return "-"
 }
 
 func (c ReleasesCommand) Run(args []string) int {
@@ -130,13 +157,13 @@ func (c ReleasesCommand) Run(args []string) int {
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 5, 0, 1, ' ', 0)
-	fmt.Fprintln(w, "  Core\tLatest Tag\t")
-	fmt.Fprintln(w, fmt.Sprintf("  %s\t%s", tfCore.Name, tfCore.TagName))
+	fmt.Fprintln(w, "  Core\tTag\tDate")
+	fmt.Fprintln(w, fmt.Sprintf("  %s\t%s\t%s", tfCore.Name, tfCore.TagName, tfCore.LastReleaseString()))
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "  Provider\tLatest Tag\t")
+	fmt.Fprintln(w, "  Provider\tTag\tDate\t")
 	for _, k := range keys {
 		rTag := repoTagMap[k]
-		fmt.Fprintln(w, fmt.Sprintf("  %s\t%s", rTag.Name, rTag.TagName))
+		fmt.Fprintln(w, fmt.Sprintf("  %s\t%s\t%s", rTag.Name, rTag.TagName, rTag.LastReleaseString()))
 	}
 	w.Flush()
 
@@ -221,7 +248,16 @@ func getLatestRelease(reposChan <-chan *RepoReleaseTag, rChan chan<- *RepoReleas
 		sort.Sort(ByTag(tags))
 
 		// in Sort I trust
-		n.TagName = *tags[0].Name
+		tag := tags[0]
+		n.TagName = *tag.Name
+
+		// query git commit info to get the date for this commit, because we don't
+		// have true "releases"
+		commit, _, err := client.Git.GetCommit(ctx, n.Owner, n.Name, *tag.Commit.SHA)
+		if err != nil {
+			log.Printf("Error getting commit infor for (%s/%s) tag (%s): %s", n.Owner, n.Name, *tag.Commit.SHA)
+		}
+		n.Date = commit.Author.Date
 
 		rChan <- n
 	}
