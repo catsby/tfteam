@@ -6,16 +6,22 @@ import (
 
 type TFPr struct {
 	*github.User
-	HTMLURL  string
-	Number   int
-	Approved bool
-	Title    string
+	HTMLURL string
+	Number  int
+	State   string
+	Title   string
 }
 
 func (tfpr *TFPr) IsApprovedString() string {
 	approved := "   "
-	if tfpr.Approved {
-		approved = "✅  "
+	if "APPROVED" == tfpr.State {
+		approved = "💚  "
+	}
+	if "COMMENTED" == tfpr.State {
+		approved = "💛  "
+	}
+	if "CHANGES_REQUESTED" == tfpr.State {
+		approved = "💔  "
 	}
 	return approved
 }

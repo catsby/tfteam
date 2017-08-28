@@ -146,6 +146,15 @@ func (c PRsCommand) Run(args []string) int {
 	return 0
 }
 
+type ByReviewDate []*github.PullRequestReview
+
+func (a ByReviewDate) Len() int      { return len(a) }
+func (a ByReviewDate) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByReviewDate) Less(i, j int) bool {
+	// return *a[i].SubmittedAt > *a[j].SubmittedAt
+	return a[i].SubmittedAt.Before(*a[j].SubmittedAt)
+}
+
 func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 	defer wgPrs.Done()
 	// should pass in and reususe context I think?
@@ -183,10 +192,17 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 		// suffecient. If they need another review from me, I'll get a ping in
 		// some fasion
 		for _, r := range reviews {
-			if "APPROVED" == *r.State {
-				pr.Approved = true
-				break
-			}
+			log.Printf("PR review state: %s", *r.State)
+			// if "APPROVED" == *r.State {
+			// 	pr.Approved = true
+			// 	break
+			// }
+		}
+
+		//pop the most recent one
+		if len(reviews) > 0 {
+			r := reviews[0]
+			pr.State = *r.State
 		}
 
 		rChan <- pr
