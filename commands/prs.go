@@ -185,21 +185,13 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 			continue
 		}
 
-		// questionable logic here; if any of the reviews are "APPROVED" then
-		// consider this approved. This isn't necessarily true because one
-		// reviewer could approve then another follow up ask for changes, but for
-		// my indvidiual puproses of reviewing TF team member PRs, this is
-		// suffecient. If they need another review from me, I'll get a ping in
-		// some fasion
-		for _, r := range reviews {
-			log.Printf("PR review state: %s", *r.State)
-			// if "APPROVED" == *r.State {
-			// 	pr.Approved = true
-			// 	break
-			// }
-		}
-
-		//pop the most recent one
+		// questionable logic here; pop the last review and use that as the status.
+		// A better strategy would probably be collect a map of reviews by reviewer.
+		// If any of them are "requested changes", then the status is
+		// CHANGES_REQUESTED, even if another reviewer approved. The only way to
+		// make approved would be if the reviewer(s) that gave CHANGES_REQUESTED,
+		// also but later, gave an APPROVED. STill not 100% but probably better than
+		// below
 		if len(reviews) > 0 {
 			r := reviews[0]
 			pr.State = *r.State
