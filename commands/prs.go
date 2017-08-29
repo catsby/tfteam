@@ -152,7 +152,7 @@ func (a ByReviewDate) Len() int      { return len(a) }
 func (a ByReviewDate) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByReviewDate) Less(i, j int) bool {
 	// return *a[i].SubmittedAt > *a[j].SubmittedAt
-	return a[i].SubmittedAt.Before(*a[j].SubmittedAt)
+	return a[j].SubmittedAt.Before(*a[i].SubmittedAt)
 }
 
 func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
@@ -192,8 +192,11 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 		// make approved would be if the reviewer(s) that gave CHANGES_REQUESTED,
 		// also but later, gave an APPROVED. STill not 100% but probably better than
 		// below
+		sort.Sort(ByReviewDate(reviews))
 		if len(reviews) > 0 {
 			r := reviews[0]
+			// log.Printf("first: %#v", r.SubmittedAt.String())
+			// log.Printf("last: %#v", reviews[len(reviews)-1].SubmittedAt.String())
 			pr.State = *r.State
 		}
 
