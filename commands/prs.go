@@ -62,7 +62,26 @@ Options:
 
 	--waiting, -w              Only show pull requests that have no reviews
 	
-	--table, -t                Show the output in a single table, sorted by repository
+	--table, -t                Show the output in a single table, sorted by
+	                           repository
+
+Examples:
+
+  $ tfteam prs -t          // Show Team member PRs, in a single table    						 
+  Status  Repo                    Author          Title        Link
+  💚      repositories            paddycarver     Something    https://github
+         terraform               jbardin         [WIP] Input  https://github
+  💔      provider-aws            catsby          whoops       https://github
+
+
+
+  $ tfteam prs -c          // Show team/collab PRs, by user
+  selmanj
+  💛  provider-google      Stuff        https://github.com/terraform-providers/
+  
+  vancluever
+  💚  provider-vsphere     Things       https://github.com/terraform-providers/
+
 `
 	return strings.TrimSpace(helpText)
 }
