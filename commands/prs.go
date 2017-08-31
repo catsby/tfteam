@@ -160,10 +160,14 @@ func (c PRsCommand) Run(args []string) int {
 	// Filter out PRs that aren't involving Terraform
 	tfIssues := []*TFPr{}
 	for _, i := range sresults.Issues {
+		// sneak some other related projects in. This cascading if statements look
+		// hilarious
 		if !strings.Contains(*i.HTMLURL, "terraform") {
 			if !strings.Contains(*i.HTMLURL, "tfteam") {
-				if !strings.Contains(*i.HTMLURL, "tf-deploy") {
-					continue
+				if !strings.Contains(*i.HTMLURL, "engservices-teamcity") {
+					if !strings.Contains(*i.HTMLURL, "tf-deploy") {
+						continue
+					}
 				}
 			}
 		}
@@ -256,6 +260,7 @@ func (c PRsCommand) Run(args []string) int {
 		}
 		w.Flush()
 	} else {
+		// User format
 		rl := make(map[string][]*TFPr)
 		for r := range resultsChan {
 			rl[*r.User.Login] = append(rl[*r.User.Login], r)
@@ -271,21 +276,37 @@ func (c PRsCommand) Run(args []string) int {
 		w := new(tabwriter.Writer)
 		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
 		for _, k := range keys {
-			fmt.Fprintln(w, k)
-			for _, pr := range rl[k] {
-				// there's better logic here for this kind of sort, using > and the
-				// ordering of the status, but I'm going on like 4 hours of sleep so
-				// ¯\_(ツ)_/¯
-				if filter > 0 {
+			if len(rl[k]) > 0 {
+				// if we're filtering out to just show waiting ones, make sure we have
+				// some
+				var waitingCount int
+				for _, pr := range rl[k] {
 					if filter != pr.StatusCode() {
 						continue
 					}
+					waitingCount++
 				}
-				fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
+
+				if filter == StatusWaiting && waitingCount == 0 {
+					continue
+				}
+				fmt.Fprintln(w, k)
+
+				for _, pr := range rl[k] {
+					// there's better logic here for this kind of sort, using > and the
+					// ordering of the status, but I'm going on like 4 hours of sleep so
+					// ¯\_(ツ)_/¯
+					if filter > 0 {
+						if filter != pr.StatusCode() {
+							continue
+						}
+					}
+					fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
+				}
+				fmt.Fprintln(w)
 			}
-			fmt.Fprintln(w)
+			w.Flush()
 		}
-		w.Flush()
 	}
 
 	return 0
@@ -313,17 +334,6 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 	client := github.NewClient(tc)
 
 	for pr := range prsChan {
-		// parse url to URL, so we can split the parts
-		// u, err := url.Parse(pr.HTMLURL)
-		// if err != nil {
-		// 	log.Println("error parsing url:", err)
-		// 	continue
-		// }
-
-		// parts := strings.Split(u.Path, "/")
-		// owner := parts[1]
-		// repo := parts[2]
-
 		reviews, _, err := client.PullRequests.ListReviews(ctx, pr.Owner, pr.Repo, pr.Number, nil)
 		if err != nil {
 			log.Printf("error getting review:%s", err)
@@ -340,8 +350,6 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 		sort.Sort(ByReviewDate(reviews))
 		if len(reviews) > 0 {
 			r := reviews[0]
-			// log.Printf("first: %#v", r.SubmittedAt.String())
-			// log.Printf("last: %#v", reviews[len(reviews)-1].SubmittedAt.String())
 			pr.State = *r.State
 		}
 
