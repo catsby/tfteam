@@ -56,6 +56,23 @@ func (c PRsCommand) Run(args []string) int {
 		os.Exit(1)
 	}
 
+	// if -c or --collaborators, call orgs/tf-providers/outside_collaborators
+	// and append non-junk users to ml slice above
+
+	var action string
+	if len(args) > 0 {
+		action = args[0]
+	}
+
+	if action == "--collaborators" || action == "-c" {
+		outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
+		if err != nil {
+			log.Printf("Error getting collabs")
+		} else {
+			members = append(members, outsideCollaborators...)
+		}
+	}
+
 	// filter out junk memebers
 	var ml []string
 	for _, m := range members {
