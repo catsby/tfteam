@@ -21,7 +21,6 @@ var wgPrs sync.WaitGroup
 
 var collaborators bool
 var tableFormat bool
-var tableFormat bool
 
 type PRReviewStatus uint
 
@@ -30,7 +29,8 @@ var filter PRReviewStatus
 const tfTeamId = 1836975
 
 const (
-	StatusWaiting PRReviewStatus = iota
+	StatusAll PRReviewStatus = iota
+	StatusWaiting
 	StatusComments
 	StatusChanges
 	StatusApproved
@@ -188,10 +188,28 @@ func (c PRsCommand) Run(args []string) int {
 		w := new(tabwriter.Writer)
 		// w.Init(os.Stdout, 5, 2, 1, '\t', 0)
 		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
-		fmt.Fprintln(w, "Status\tRepo\tAuthor\tTitle\tLink")
+		// change table format to remove status column if we're just looking at
+		// waiting reviews
+		tableFormat := "Status\tRepo\tAuthor\tTitle\tLink"
+		if filter == StatusWaiting {
+			tableFormat = "Repo\tAuthor\tTitle\tLink"
+		}
+		fmt.Fprintln(w, tableFormat)
 		for _, k := range keys {
 			for _, pr := range rl[k] {
-				fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
+				// there's better logic here for this kind of sort, using > and the
+				// ordering of the status, but I'm going on like 4 hours of sleep so
+				// ¯\_(ツ)_/¯
+				if filter > 0 {
+					if filter != pr.StatusCode() {
+						continue
+					}
+				}
+				if filter == StatusWaiting {
+					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s", strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
+				} else {
+					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
+				}
 			}
 		}
 		w.Flush()
@@ -213,6 +231,14 @@ func (c PRsCommand) Run(args []string) int {
 		for _, k := range keys {
 			fmt.Fprintln(w, k)
 			for _, pr := range rl[k] {
+				// there's better logic here for this kind of sort, using > and the
+				// ordering of the status, but I'm going on like 4 hours of sleep so
+				// ¯\_(ツ)_/¯
+				if filter > 0 {
+					if filter != pr.StatusCode() {
+						continue
+					}
+				}
 				fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
 			}
 			fmt.Fprintln(w)
