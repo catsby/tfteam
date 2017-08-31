@@ -19,7 +19,22 @@ import (
 
 var wgPrs sync.WaitGroup
 
+var collaborators bool
+var tableFormat bool
+var tableFormat bool
+
+type PRReviewStatus uint
+
+var filter PRReviewStatus
+
 const tfTeamId = 1836975
+
+const (
+	StatusWaiting PRReviewStatus = iota
+	StatusComments
+	StatusChanges
+	StatusApproved
+)
 
 type PRsCommand struct {
 	UI cli.Ui
@@ -58,13 +73,21 @@ func (c PRsCommand) Run(args []string) int {
 
 	// if -c or --collaborators, call orgs/tf-providers/outside_collaborators
 	// and append non-junk users to ml slice above
-
-	var action string
 	if len(args) > 0 {
-		action = args[0]
+		for _, a := range args {
+			if a == "--collaborators" || a == "-c" {
+				collaborators = true
+			}
+			if a == "--table" || a == "-t" {
+				tableFormat = true
+			}
+			if a == "--waiting" || a == "-w" {
+				filter = StatusWaiting
+			}
+		}
 	}
 
-	if action == "--collaborators" || action == "-c" {
+	if collaborators {
 		outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
 		if err != nil {
 			log.Printf("Error getting collabs")
@@ -102,11 +125,24 @@ func (c PRsCommand) Run(args []string) int {
 				}
 			}
 		}
+
+		var repo string
+		var owner string
+		u, err := url.Parse(*i.HTMLURL)
+		if err != nil {
+			log.Println("error parsing url:", err)
+		} else {
+			parts := strings.Split(u.Path, "/")
+			owner = parts[1]
+			repo = parts[2]
+		}
 		tfpr := TFPr{
 			User:    i.User,
 			HTMLURL: *i.HTMLURL,
 			Number:  *i.Number,
 			Title:   *i.Title,
+			Owner:   owner,
+			Repo:    repo,
 		}
 		tfIssues = append(tfIssues, &tfpr)
 	}
@@ -135,30 +171,54 @@ func (c PRsCommand) Run(args []string) int {
 	wgPrs.Wait()
 	close(resultsChan)
 
-	// convert results into a map of users/user prs for sorting
-	rl := make(map[string][]*TFPr)
-	for r := range resultsChan {
-		rl[*r.User.Login] = append(rl[*r.User.Login], r)
-	}
-
-	// sort Team members by Alpha order sorry vancluever
-	var keys []string
-	for k, _ := range rl {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 5, 0, 1, ' ', 0)
-	for _, k := range keys {
-		fmt.Fprintln(w, k)
-		for _, pr := range rl[k] {
-			c.UI.Output(fmt.Sprintf("%s%s\t%s", pr.IsApprovedString(), pr.TitleTruncated(), pr.HTMLURL))
+	if tableFormat {
+		// convert results into a map of users/user prs for sorting
+		rl := make(map[string][]*TFPr)
+		for r := range resultsChan {
+			rl[r.Repo] = append(rl[r.Repo], r)
 		}
-		fmt.Fprintln(w)
+
+		var keys []string
+		for k, _ := range rl {
+			keys = append(keys, k)
+		}
+
+		sort.Strings(keys)
+
+		w := new(tabwriter.Writer)
+		// w.Init(os.Stdout, 5, 2, 1, '\t', 0)
+		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+		fmt.Fprintln(w, "Status\tRepo\tAuthor\tTitle\tLink")
+		for _, k := range keys {
+			for _, pr := range rl[k] {
+				fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
+			}
+		}
+		w.Flush()
+	} else {
+		rl := make(map[string][]*TFPr)
+		for r := range resultsChan {
+			rl[*r.User.Login] = append(rl[*r.User.Login], r)
+		}
+		// sort Team members by Alpha order sorry vancluever
+		var keys []string
+		for k, _ := range rl {
+			keys = append(keys, k)
+		}
+
+		sort.Strings(keys)
+
+		w := new(tabwriter.Writer)
+		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+		for _, k := range keys {
+			fmt.Fprintln(w, k)
+			for _, pr := range rl[k] {
+				fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
+			}
+			fmt.Fprintln(w)
+		}
+		w.Flush()
 	}
-	w.Flush()
 
 	return 0
 }
@@ -186,17 +246,17 @@ func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 
 	for pr := range prsChan {
 		// parse url to URL, so we can split the parts
-		u, err := url.Parse(pr.HTMLURL)
-		if err != nil {
-			log.Println("error parsing url:", err)
-			continue
-		}
+		// u, err := url.Parse(pr.HTMLURL)
+		// if err != nil {
+		// 	log.Println("error parsing url:", err)
+		// 	continue
+		// }
 
-		parts := strings.Split(u.Path, "/")
-		owner := parts[1]
-		repo := parts[2]
+		// parts := strings.Split(u.Path, "/")
+		// owner := parts[1]
+		// repo := parts[2]
 
-		reviews, _, err := client.PullRequests.ListReviews(ctx, owner, repo, pr.Number, nil)
+		reviews, _, err := client.PullRequests.ListReviews(ctx, pr.Owner, pr.Repo, pr.Number, nil)
 		if err != nil {
 			log.Printf("error getting review:%s", err)
 			continue

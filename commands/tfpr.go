@@ -10,6 +10,9 @@ type TFPr struct {
 	Number  int
 	State   string
 	Title   string
+
+	Owner string
+	Repo  string
 }
 
 func (tfpr *TFPr) IsApprovedString() string {
@@ -24,6 +27,20 @@ func (tfpr *TFPr) IsApprovedString() string {
 		approved = "💔  "
 	}
 	return approved
+}
+
+func (tfpr *TFPr) StatusCode() PRReviewStatus {
+	status := StatusWaiting
+	if "APPROVED" == tfpr.State {
+		status = StatusApproved
+	}
+	if "COMMENTED" == tfpr.State {
+		status = StatusComments
+	}
+	if "CHANGES_REQUESTED" == tfpr.State {
+		status = StatusChanges
+	}
+	return status
 }
 
 func (tfpr *TFPr) TitleTruncated() string {
