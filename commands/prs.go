@@ -41,7 +41,30 @@ type PRsCommand struct {
 }
 
 func (c PRsCommand) Help() string {
-	return "Help - todo"
+	helpText := `
+Usage: tfteam prs [options] 
+
+	List pull requests that are opened by team members. The output includes the
+	status of the pull request, author, repo, title, and link.
+
+	Pull requests are in 1 of 4 states: 
+          - " " No review 
+          - "💚" Reviewed, Approved!
+          - "💛" Reviewed, with Comments
+          - "💔" Reviewed, with Changes requested
+
+	If no arguments are given, list just pull requests  and their status for
+	Terraform OSS team members only, grouped by user.
+
+Options:
+
+	--collaborators, -c        Include Pull Requests from repository collaborators 
+
+	--waiting, -w              Only show pull requests that have no reviews
+	
+	--table, -t                Show the output in a single table, sorted by repository
+`
+	return strings.TrimSpace(helpText)
 }
 
 func (c PRsCommand) Synopsis() string {
