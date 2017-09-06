@@ -312,15 +312,6 @@ func (c PRsCommand) Run(args []string) int {
 	return 0
 }
 
-type ByReviewDate []*github.PullRequestReview
-
-func (a ByReviewDate) Len() int      { return len(a) }
-func (a ByReviewDate) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByReviewDate) Less(i, j int) bool {
-	// return *a[i].SubmittedAt > *a[j].SubmittedAt
-	return a[j].SubmittedAt.Before(*a[i].SubmittedAt)
-}
-
 func getApprovalStatus(prsChan <-chan *TFPr, rChan chan<- *TFPr) {
 	defer wgPrs.Done()
 	// should pass in and reususe context I think?
