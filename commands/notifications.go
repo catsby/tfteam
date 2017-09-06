@@ -116,6 +116,13 @@ func (c NotificationsCommand) Run(args []string) int {
 			continue
 		}
 
+		// not sure what to do about commits, b/c they aren't "closed" or "merged".
+		// Skip for now.
+		log.Printf("Subject Type: %s", *n.Subject.Type)
+		if "Commit" == *n.Subject.Type {
+			continue
+		}
+
 		parts := strings.Split(u.Path, "/")
 		numberRaw := parts[len(parts)-1]
 		number, err := strconv.Atoi(numberRaw)
