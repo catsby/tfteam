@@ -20,6 +20,7 @@ import (
 var wgPrs sync.WaitGroup
 
 var collaborators bool
+var all bool
 var tableFormat bool
 
 type PRReviewStatus uint
@@ -58,7 +59,9 @@ Usage: tfteam prs [options]
 
 Options:
 
-	--collaborators, -c        Include Pull Requests from repository collaborators 
+	--collaborators, -c        Only Pull Requests from repository collaborators 
+	
+	--all, -a  				         Pull Requests from team and repository collaborators 
 
 	--waiting, -w              Only show pull requests that have no reviews
 	
@@ -75,7 +78,11 @@ Examples:
 
 
 
-  $ tfteam prs -c          // Show team/collab PRs, by user
+  $ tfteam prs -c          // Show collab PRs, by user
+  selmanj
+  💛  provider-google      Stuff        https://github.com/terraform-providers/
+  
+  $ tfteam prs -a          // Show team/collab PRs, by user
   selmanj
   💛  provider-google      Stuff        https://github.com/terraform-providers/
   
@@ -126,15 +133,22 @@ func (c PRsCommand) Run(args []string) int {
 			if a == "--waiting" || a == "-w" {
 				filter = StatusWaiting
 			}
+			if a == "--all" || a == "-a" {
+				all = true
+			}
 		}
 	}
 
-	if collaborators {
+	if collaborators || all {
 		outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
 		if err != nil {
 			log.Printf("Error getting collabs")
 		} else {
-			members = append(members, outsideCollaborators...)
+			if all {
+				members = append(members, outsideCollaborators...)
+			} else {
+				members = outsideCollaborators
+			}
 		}
 	}
 
