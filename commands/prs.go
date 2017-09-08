@@ -169,11 +169,24 @@ func (c PRsCommand) Run(args []string) int {
 
 	// search for list by all these authors
 	sopt := &github.SearchOptions{}
-	sresults, _, err := client.Search.Issues(ctx, fmt.Sprintf("state:open %s type:pr", authorStr), sopt)
+
+	var issues []github.Issue
+	for {
+		sresults, resp, err := client.Search.Issues(ctx, fmt.Sprintf("state:open %s type:pr", authorStr), sopt)
+		if err != nil {
+			c.UI.Warn(fmt.Sprintf("Error Searching Issues: %s", err))
+			return 1
+		}
+		issues = append(issues, sresults.Issues...)
+		if resp.NextPage == 0 {
+			break
+		}
+		sopt.Page = resp.NextPage
+	}
 
 	// Filter out PRs that aren't involving Terraform
 	tfIssues := []*TFPr{}
-	for _, i := range sresults.Issues {
+	for _, i := range issues {
 		// sneak some other related projects in. This cascading if statements look
 		// hilarious
 		if !strings.Contains(*i.HTMLURL, "terraform") {

@@ -79,7 +79,6 @@ func (c NotificationsCommand) Run(args []string) int {
 	// do defauls
 	nopt := &github.NotificationListOptions{}
 	var notifications []*github.Notification
-	var lo int
 	for {
 		part, resp, err := client.Activity.ListNotifications(ctx, nopt)
 		if err != nil {
@@ -91,7 +90,6 @@ func (c NotificationsCommand) Run(args []string) int {
 			break
 		}
 		nopt.Page = resp.NextPage
-		lo++
 	}
 
 	// NotificationIssues to look for
