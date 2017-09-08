@@ -50,9 +50,9 @@ Usage: tfteam prs [options]
 
 	Pull requests are in 1 of 4 states: 
           - " " No review 
-          - "💚" Reviewed, Approved!
-          - "💛" Reviewed, with Comments
-          - "💔" Reviewed, with Changes requested
+          - "+  " Reviewed, Approved!
+          - "?  " Reviewed, with Comments
+          - "-  " Reviewed, with Changes requested
 
 	If no arguments are given, list just pull requests  and their status for
 	Terraform OSS team members only, grouped by user.

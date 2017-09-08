@@ -18,13 +18,13 @@ type TFPr struct {
 func (tfpr *TFPr) IsApprovedString() string {
 	approved := "   "
 	if "APPROVED" == tfpr.State {
-		approved = "💚  "
+		approved = "+  "
 	}
 	if "COMMENTED" == tfpr.State {
-		approved = "💛  "
+		approved = "?  "
 	}
 	if "CHANGES_REQUESTED" == tfpr.State {
-		approved = "💔  "
+		approved = "-  "
 	}
 	return approved
 }
