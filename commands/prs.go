@@ -72,22 +72,22 @@ Examples:
 
   $ tfteam prs -t          // Show Team member PRs, in a single table    						 
   Status  Repo                    Author          Title        Link
-  💚      repositories            paddycarver     Something    https://github
+  +      repositories            paddycarver     Something    https://github
          terraform               jbardin         [WIP] Input  https://github
-  💔      provider-aws            catsby          whoops       https://github
+  -      provider-aws            catsby          whoops       https://github
 
 
 
   $ tfteam prs -c          // Show collab PRs, by user
   selmanj
-  💛  provider-google      Stuff        https://github.com/terraform-providers/
+  ?  provider-google      Stuff        https://github.com/terraform-providers/
   
   $ tfteam prs -a          // Show team/collab PRs, by user
   selmanj
-  💛  provider-google      Stuff        https://github.com/terraform-providers/
+  ?  provider-google      Stuff        https://github.com/terraform-providers/
   
   vancluever
-  💚  provider-vsphere     Things       https://github.com/terraform-providers/
+  +  provider-vsphere     Things       https://github.com/terraform-providers/
 
 `
 	return strings.TrimSpace(helpText)
