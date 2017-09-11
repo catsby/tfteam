@@ -21,6 +21,8 @@ var wgPrs sync.WaitGroup
 
 var collaborators bool
 var all bool
+var includeUsers []string
+var filterUsers []string
 var tableFormat bool
 
 type PRReviewStatus uint
@@ -61,12 +63,19 @@ Options:
 
 	--collaborators, -c        Only Pull Requests from repository collaborators 
 	
-	--all, -a  				         Pull Requests from team and repository collaborators 
+	--all, -a                  Pull Requests from team and repository collaborators 
+
+	--users, -u                A comma seperated list of users to include pull
+                             requests from 
+
+	--filter, -f               A comma seperated list of users to only show
+                             results for. This takes precedence over all other user modifing arguments
 
 	--waiting, -w              Only show pull requests that have no reviews
 	
 	--table, -t                Show the output in a single table, sorted by
 	                           repository
+
 
 Examples:
 
@@ -89,6 +98,19 @@ Examples:
   vancluever
   +  provider-vsphere     Things       https://github.com/terraform-providers/
 
+	$ tfteam prs -u=stack72
+	  [..]
+		radeksimko
+		?  provider-kubernetes  r/service: Make spec.port.target_port optional          https://github.com/terraform-providers/terraform-provider-kubernetes/pull/69
+		
+		stack72
+		   provider-aws         [WIP] provider/aws: Add support for Network L[...]      https://github.com/terraform-providers/terraform-provider-aws/pull/1629
+	  [..]
+
+	$ tfteam prs -f=catsby
+		catsby
+		?  tf-deploy    Fix issue releasing Core                                https://github.com/hashicorp/tf-deploy/pull/7
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -104,21 +126,12 @@ func (c PRsCommand) Run(args []string) int {
 		return 1
 	}
 
-	// refactor, this is boilerplate
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: key},
 	)
 	tc := oauth2.NewClient(ctx, ts)
-
 	client := github.NewClient(tc)
-
-	opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
-	members, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		os.Exit(1)
-	}
 
 	// if -c or --collaborators, call orgs/tf-providers/outside_collaborators
 	// and append non-junk users to ml slice above
@@ -136,27 +149,70 @@ func (c PRsCommand) Run(args []string) int {
 			if a == "--all" || a == "-a" {
 				all = true
 			}
-		}
-	}
-
-	if collaborators || all {
-		outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
-		if err != nil {
-			log.Printf("Error getting collabs")
-		} else {
-			if all {
-				members = append(members, outsideCollaborators...)
-			} else {
-				members = outsideCollaborators
+			if strings.Contains(a, "--users") || strings.Contains(a, "-u") {
+				parts := strings.Split(a, "=")
+				// parts 0 is "--users" or "-u"
+				if len(parts) > 1 {
+					includeUsers = strings.Split(parts[1], ",")
+				} else {
+					log.Printf("no user given")
+				}
+			}
+			if strings.Contains(a, "--filter") || strings.Contains(a, "-f") {
+				parts := strings.Split(a, "=")
+				// parts 0 is "--users" or "-u"
+				if len(parts) > 1 {
+					filterUsers = strings.Split(parts[1], ",")
+				} else {
+					log.Printf("no filter user given")
+				}
 			}
 		}
 	}
 
-	// filter out junk memebers
 	var ml []string
-	for _, m := range members {
-		if *m.Login != "hashicorp-fossa" && *m.Login != "tf-release-bot" {
-			ml = append(ml, *m.Login)
+	if len(filterUsers) > 0 {
+		// only look at these users, skip later blocks
+		collaborators = false
+		all = false
+		for _, u := range filterUsers {
+			ml = append(ml, u)
+		}
+	}
+
+	if len(ml) == 0 {
+		// refactor, this is boilerplate
+
+		opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
+		members, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			os.Exit(1)
+		}
+
+		if collaborators || all {
+			outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
+			if err != nil {
+				log.Printf("Error getting collabs")
+			} else {
+				if all {
+					members = append(members, outsideCollaborators...)
+				} else {
+					members = outsideCollaborators
+				}
+			}
+		}
+
+		// filter out junk memebers
+		for _, m := range members {
+			if *m.Login != "hashicorp-fossa" && *m.Login != "tf-release-bot" {
+				ml = append(ml, *m.Login)
+			}
+		}
+
+		for _, u := range includeUsers {
+			// Don't add dupes.
+			ml = append(ml, u)
 		}
 	}
 
