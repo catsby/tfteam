@@ -170,50 +170,54 @@ func (c PRsCommand) Run(args []string) int {
 		}
 	}
 
-	var ml []string
-	if len(filterUsers) > 0 {
-		// only look at these users, skip later blocks
-		collaborators = false
-		all = false
-		for _, u := range filterUsers {
-			ml = append(ml, u)
+	ml := make(map[string]string)
+
+	// refactor, this is boilerplate
+
+	opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
+	members, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		os.Exit(1)
+	}
+
+	if collaborators || all {
+		outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
+		if err != nil {
+			log.Printf("Error getting collabs")
+		} else {
+			if all {
+				members = append(members, outsideCollaborators...)
+			} else {
+				members = outsideCollaborators
+			}
 		}
 	}
 
-	if len(ml) == 0 {
-		// refactor, this is boilerplate
-
-		opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
-		members, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
-		if err != nil {
-			fmt.Println("Error: ", err)
-			os.Exit(1)
+	// filter out junk memebers
+	for _, m := range members {
+		if *m.Login != "hashicorp-fossa" && *m.Login != "tf-release-bot" {
+			ml[*m.Login] = *m.Login
 		}
+	}
 
-		if collaborators || all {
-			outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
-			if err != nil {
-				log.Printf("Error getting collabs")
-			} else {
-				if all {
-					members = append(members, outsideCollaborators...)
-				} else {
-					members = outsideCollaborators
+	for _, u := range includeUsers {
+		ml[u] = u
+	}
+
+	if len(filterUsers) > 0 {
+		// only look at these users, skip later blocks
+		newList := make(map[string]string)
+		collaborators = false
+		all = false
+		for _, u := range filterUsers {
+			for _, v := range ml {
+				if strings.Contains(v, u) {
+					newList[v] = v
 				}
 			}
 		}
-
-		// filter out junk memebers
-		for _, m := range members {
-			if *m.Login != "hashicorp-fossa" && *m.Login != "tf-release-bot" {
-				ml = append(ml, *m.Login)
-			}
-		}
-
-		for _, u := range includeUsers {
-			// Don't add dupes.
-			ml = append(ml, u)
-		}
+		ml = newList
 	}
 
 	// combine all the members into a single author string so we only hit GitHub
