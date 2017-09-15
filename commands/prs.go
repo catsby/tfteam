@@ -98,12 +98,12 @@ Examples:
   vancluever
   +  provider-vsphere     Things       https://github.com/terraform-providers/
 
-	$ tfteam prs -u=stack72
+	$ tfteam prs -u=grubernaut
 	  [..]
 		radeksimko
 		?  provider-kubernetes  r/service: Make spec.port.target_port optional          https://github.com/terraform-providers/terraform-provider-kubernetes/pull/69
 		
-		stack72
+		grubernaut
 		   provider-aws         [WIP] provider/aws: Add support for Network L[...]      https://github.com/terraform-providers/terraform-provider-aws/pull/1629
 	  [..]
 
