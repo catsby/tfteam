@@ -138,22 +138,18 @@ func (c ReleasesCommand) Run(args []string) int {
 	wgNIssues.Wait()
 	close(resultsChan)
 
-	// stor the results into a map, for sorting
-	repoTagMap := make(map[string]*RepoReleaseTag)
+	var tfCore *RepoReleaseTag
+	var releases []*RepoReleaseTag
 	for r := range resultsChan {
-		repoTagMap[r.Name] = r
+		if r.Name == "terraform" {
+			tfCore = r
+			break
+		}
+		releases = append(releases, r)
 	}
 
-	// pop core out to list first
-	tfCore := repoTagMap["terraform"]
-	delete(repoTagMap, "terraform")
-
-	var keys []string
-	for k, _ := range repoTagMap {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
+	// sort by "days ago"
+	sort.Sort(ByDaysAgo(releases))
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 5, 0, 1, ' ', 0)
@@ -161,13 +157,21 @@ func (c ReleasesCommand) Run(args []string) int {
 	fmt.Fprintln(w, fmt.Sprintf("  %s\t%s\t%s", tfCore.Name, tfCore.TagName, tfCore.LastReleaseString()))
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "  Provider\tTag\tDate\t")
-	for _, k := range keys {
-		rTag := repoTagMap[k]
+	for _, rTag := range releases {
 		fmt.Fprintln(w, fmt.Sprintf("  %s\t%s\t%s", rTag.Name, rTag.TagName, rTag.LastReleaseString()))
 	}
 	w.Flush()
 
 	return 0
+}
+
+// When listing releases, list by most recently released first
+type ByDaysAgo []*RepoReleaseTag
+
+func (a ByDaysAgo) Len() int      { return len(a) }
+func (a ByDaysAgo) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByDaysAgo) Less(i, j int) bool {
+	return a[i].Date.After(*a[j].Date)
 }
 
 type ByTag []*github.RepositoryTag
