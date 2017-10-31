@@ -1,5 +1,5 @@
 default:
-	go build -o tfteam && mv tfteam $(GOPATH)/bin
+	go install
 
 bootstrap:
 	go get -u github.com/mitchellh/cli
