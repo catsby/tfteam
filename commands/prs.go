@@ -172,26 +172,35 @@ func (c PRsCommand) Run(args []string) int {
 
 	ml := make(map[string]string)
 
+	var members []*github.User
 	// refactor, this is boilerplate
-
-	opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
-	members, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		os.Exit(1)
+	if !collaborators || all {
+		opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
+		// TODO check pagination
+		teamMembers, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			os.Exit(1)
+		}
+		members = append(members, teamMembers...)
 	}
 
 	if collaborators || all {
-		outsideCollaborators, _, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", nil)
-		if err != nil {
-			log.Printf("Error getting collabs")
-		} else {
-			if all {
-				members = append(members, outsideCollaborators...)
+		var collabMembers []*github.User
+		copt := &github.ListOutsideCollaboratorsOptions{}
+		for {
+			outsideCollaborators, resp, err := client.Organizations.ListOutsideCollaborators(ctx, "terraform-providers", copt)
+			if err != nil {
+				log.Printf("Error getting collabs")
 			} else {
-				members = outsideCollaborators
+				collabMembers = append(collabMembers, outsideCollaborators...)
 			}
+			if resp.NextPage == 0 {
+				break
+			}
+			copt.Page = resp.NextPage
 		}
+		members = append(members, collabMembers...)
 	}
 
 	// filter out junk memebers
