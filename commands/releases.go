@@ -101,6 +101,10 @@ func (c ReleasesCommand) Run(args []string) int {
 
 	var rList []*RepoReleaseTag
 	for _, n := range repos {
+		if *n.Name == "terraform-provider-scaffolding" {
+			// exclude the example repo for now
+			continue
+		}
 		ni := RepoReleaseTag{
 			Owner: *n.Owner.Login,
 			Name:  *n.Name,
