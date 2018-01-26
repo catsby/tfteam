@@ -279,12 +279,14 @@ func (c PRsCommand) Run(args []string) int {
 			repo = parts[2]
 		}
 		tfpr := TFPr{
-			User:    i.User,
-			HTMLURL: *i.HTMLURL,
-			Number:  *i.Number,
-			Title:   *i.Title,
-			Owner:   owner,
-			Repo:    repo,
+			User:      i.User,
+			HTMLURL:   *i.HTMLURL,
+			Number:    *i.Number,
+			Title:     *i.Title,
+			CreatedAt: i.CreatedAt,
+			UpdatedAt: i.UpdatedAt,
+			Owner:     owner,
+			Repo:      repo,
 		}
 		tfIssues = append(tfIssues, &tfpr)
 	}
@@ -332,7 +334,7 @@ func (c PRsCommand) Run(args []string) int {
 		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
 		// change table format to remove status column if we're just looking at
 		// waiting reviews
-		tableFormat := "Status\tRepo\tAuthor\tTitle\tLink"
+		tableFormat := "Status\tCreated At\tRepo\tAuthor\tTitle\tLink"
 		if filter == StatusWaiting {
 			tableFormat = "Repo\tAuthor\tTitle\tLink"
 		}
@@ -397,7 +399,7 @@ func (c PRsCommand) Run(args []string) int {
 							continue
 						}
 					}
-					fmt.Fprintln(w, fmt.Sprintf("%s%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
+					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", pr.IsApprovedString(), pr.CreatedAt.Format("Mon Jan 2 15:04:05 MST 2006"), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
 				}
 				fmt.Fprintln(w)
 			}

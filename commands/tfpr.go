@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"time"
+
 	"github.com/google/go-github/github"
 )
 
@@ -13,6 +15,9 @@ type TFPr struct {
 
 	Owner string
 	Repo  string
+
+	CreatedAt *time.Time
+	UpdatedAt *time.Time
 }
 
 func (tfpr *TFPr) IsApprovedString() string {
