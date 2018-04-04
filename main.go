@@ -41,6 +41,11 @@ func main() {
 				UI: ui,
 			}, nil
 		},
+		"triage": func() (cli.Command, error) {
+			return &commands.TriageCommand{
+				UI: ui,
+			}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
