@@ -70,6 +70,15 @@ func (c ReleasesCommand) Run(args []string) int {
 		return 1
 	}
 
+	var sortByName bool
+	if len(args) > 0 {
+		for _, a := range args {
+			if a == "--by-name" || a == "-b" {
+				sortByName = true
+			}
+		}
+	}
+
 	// refactor, this is boilerplate
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -152,8 +161,13 @@ func (c ReleasesCommand) Run(args []string) int {
 		releases = append(releases, r)
 	}
 
-	// sort by "days ago"
-	sort.Sort(ByDaysAgo(releases))
+	if sortByName {
+		// sort by repo name
+		sort.Sort(ByRepoName(releases))
+	} else {
+		// sort by "days ago"
+		sort.Sort(ByDaysAgo(releases))
+	}
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 5, 0, 1, ' ', 0)
@@ -176,6 +190,15 @@ func (a ByDaysAgo) Len() int      { return len(a) }
 func (a ByDaysAgo) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByDaysAgo) Less(i, j int) bool {
 	return a[i].Date.After(*a[j].Date)
+}
+
+// When listing releases, sort by alpha name of repo
+type ByRepoName []*RepoReleaseTag
+
+func (a ByRepoName) Len() int      { return len(a) }
+func (a ByRepoName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByRepoName) Less(i, j int) bool {
+	return a[i].Name < a[j].Name
 }
 
 type ByTag []*github.RepositoryTag
