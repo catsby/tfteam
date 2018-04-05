@@ -35,6 +35,13 @@ Options:
 
 	--pulls, -p        Only list Pull Requests 
 
+	--type, -t         Provider type to search: 
+                             - "[a]ll" - every provider in terraform-providers
+                             - "[h]ashi" - hashicorp ones: vault, nomad, aws, gcp, azure, consul 
+                             - "[c]ommunity" - (all - hashi) # doesn't work yet
+                         
+                           Default: hashi
+
 Examples:
 
   $ tfteam triage          // Show all things
@@ -75,6 +82,16 @@ func (c TriageCommand) Run(args []string) int {
 	client := github.NewClient(tc)
 
 	// by default, only show issues
+	repoNameFilter := []string{
+		"terraform-providers/terraform-provider-aws",
+		"terraform-providers/terraform-provider-vault",
+		"terraform-providers/terraform-provider-consul",
+		"terraform-providers/terraform-provider-nomad",
+		"terraform-providers/terraform-provider-google",
+		"terraform-providers/terraform-provider-opc",
+		"terraform-providers/terraform-provider-vsphere",
+		"terraform-providers/terraform-provider-kubernetes",
+	}
 	filter := "is:issue"
 	if len(args) > 0 {
 		for _, a := range args {
@@ -84,45 +101,62 @@ func (c TriageCommand) Run(args []string) int {
 			if a == "--all" || a == "-a" {
 				filter = ""
 			}
+
+			// default with just hashi repos. If we wwant all, clear the filter list
+			if a == "--all" || a == "-a" {
+				repoNameFilter = []string{}
+			}
+
+			if strings.Contains(a, "--type") || strings.Contains(a, "-t") {
+				parts := strings.Split(a, "=")
+				// parts 0 is "--users" or "-u"
+				if len(parts) > 1 && parts[1] == "a" || parts[1] == "all" {
+					repoNameFilter = []string{}
+				} else {
+					log.Printf("no filter user given")
+				}
+			}
 		}
 	}
 
-	// get list of repositories across terraform-repositories
-	// TODO: this was copy-pasta'd from commands/releases.go
-	nopt := &github.RepositoryListByOrgOptions{
-		Type: "public",
-	}
-	var repos []*github.Repository
-	for {
-		part, resp, err := client.Repositories.ListByOrg(ctx, "terraform-providers", nopt)
+	// only get org repos if we aren't filtering
+	if len(repoNameFilter) == 0 {
+		// get list of repositories across terraform-repositories
+		// TODO: this was copy-pasta'd from commands/releases.go
+		nopt := &github.RepositoryListByOrgOptions{
+			Type: "public",
+		}
+		var repos []*github.Repository
+		for {
+			part, resp, err := client.Repositories.ListByOrg(ctx, "terraform-providers", nopt)
 
-		if err != nil {
-			c.UI.Warn(fmt.Sprintf("Error listing Repositories: %s", err))
-			return 1
+			if err != nil {
+				c.UI.Warn(fmt.Sprintf("Error listing Repositories: %s", err))
+				return 1
+			}
+			repos = append(repos, part...)
+			if resp.NextPage == 0 {
+				break
+			}
+			nopt.Page = resp.NextPage
 		}
-		repos = append(repos, part...)
-		if resp.NextPage == 0 {
-			break
-		}
-		nopt.Page = resp.NextPage
-	}
 
-	// repoStr := "repo:"
-	repoStr := "repo:"
-	var rs []string
-	for _, r := range repos {
-		if !*r.HasIssues {
-			log.Printf("\n@@@ repo (%s) does not have issues\n", *r.Name)
-			continue
+		for _, r := range repos {
+			if !*r.HasIssues {
+				continue
+			}
+			repoNameFilter = append(repoNameFilter, "terraform-providers/"+*r.Name)
 		}
-		rs = append(rs, "terraform-providers/"+*r.Name)
 	}
 
 	// cut the string in half and search 2x b/c github search was barfing on one
 	// giant string
-	half := len(rs) / 2
-	p1 := rs[:half]
-	p2 := rs[half:]
+	half := len(repoNameFilter) / 2
+	p1 := repoNameFilter[:half]
+	p2 := repoNameFilter[half:]
+
+	// repoStr := "repo:"
+	repoStr := "repo:"
 
 	repoStr1 := repoStr + strings.Join(p1, " repo:")
 	repoStr2 := repoStr + strings.Join(p2, " repo:")
@@ -134,7 +168,7 @@ func (c TriageCommand) Run(args []string) int {
 		sopt := &github.SearchOptions{Sort: "updated"}
 
 		for {
-			sresults, resp, err := client.Search.Issues(ctx, fmt.Sprintf("state:open %s no:label %s", s, filter), sopt)
+			sresults, resp, err := client.Search.Issues(ctx, fmt.Sprintf("state:open no:label %s %s", s, filter), sopt)
 			if err != nil {
 				log.Printf("Error Searching Issues: %s", err)
 				break
