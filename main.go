@@ -46,6 +46,11 @@ func main() {
 				UI: ui,
 			}, nil
 		},
+		"waiting": func() (cli.Command, error) {
+			return &commands.WaitingCommand{
+				UI: ui,
+			}, nil
+		},
 	}
 
 	exitStatus, err := c.Run()
