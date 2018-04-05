@@ -84,13 +84,14 @@ func (c TriageCommand) Run(args []string) int {
 	// by default, only show issues
 	repoNameFilter := []string{
 		"terraform-providers/terraform-provider-aws",
-		"terraform-providers/terraform-provider-vault",
+		"terraform-providers/terraform-provider-azurerm",
 		"terraform-providers/terraform-provider-consul",
-		"terraform-providers/terraform-provider-nomad",
 		"terraform-providers/terraform-provider-google",
-		"terraform-providers/terraform-provider-opc",
-		"terraform-providers/terraform-provider-vsphere",
 		"terraform-providers/terraform-provider-kubernetes",
+		"terraform-providers/terraform-provider-nomad",
+		"terraform-providers/terraform-provider-opc",
+		"terraform-providers/terraform-provider-vault",
+		"terraform-providers/terraform-provider-vsphere",
 	}
 	filter := "is:issue"
 	if len(args) > 0 {
