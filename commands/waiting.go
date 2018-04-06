@@ -165,7 +165,7 @@ func (c WaitingCommand) Run(args []string) int {
 
 		for {
 			searchStr := fmt.Sprintf("state:open label:waiting-response %s %s updated:%s..%s", s, filter, threeDaysAgo.Format("2006-01-02"), threeHoursAgo.Format("2006-01-02T15:04:05"))
-			log.Printf("\ns: %s\n", searchStr)
+			// log.Printf("\ns: %s\n", searchStr)
 			sresults, resp, err := client.Search.Issues(ctx, searchStr, sopt)
 			if err != nil {
 				log.Printf("Error Searching Issues: %s", err)
