@@ -158,7 +158,7 @@ func (c WaitingCommand) Run(args []string) int {
 		now := time.Now()
 		threeDaysAgo := now.AddDate(0, 0, -3)
 		// intent is to not show items that you just flagged as waiting-reply
-		threeHoursAgo := now.Add(-time.Hour * 3)
+		threeHoursAgo := now.Add(-time.Hour * 1)
 
 		// golang reference time
 		// Mon Jan 2 15:04:05 -0700 MST 2006
