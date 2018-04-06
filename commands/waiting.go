@@ -157,9 +157,11 @@ func (c WaitingCommand) Run(args []string) int {
 		// find 72 hours ago
 		now := time.Now()
 		threeDaysAgo := now.AddDate(0, 0, -3)
+		butNotToday := now.AddDate(0, 0, -1)
 
 		for {
-			searchStr := fmt.Sprintf("state:open label:waiting-response %s %s updated:>=%s", s, filter, threeDaysAgo.Format("2006-01-02"))
+			searchStr := fmt.Sprintf("state:open label:waiting-response %s %s updated:%s..%s", s, filter, threeDaysAgo.Format("2006-01-02"), butNotToday.Format("2006-01-02"))
+			// log.Printf("\ns: %s\n", searchStr)
 			sresults, resp, err := client.Search.Issues(ctx, searchStr, sopt)
 			if err != nil {
 				log.Printf("Error Searching Issues: %s", err)
