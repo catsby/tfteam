@@ -35,7 +35,7 @@ the past 72 hours. TODO: only list those that are waiting, and have a reply
 since the label
 
 Options:
-
+  -e,--expired 		Show items with 'waiting-response' with no update in 14+ days
 `
 	return strings.TrimSpace(helpText)
 }
@@ -80,28 +80,11 @@ func (c WaitingCommand) Run(args []string) int {
 		"terraform-providers/terraform-provider-vsphere",
 	}
 	filter := "is:issue"
+	var expired bool
 	if len(args) > 0 {
 		for _, a := range args {
-			if a == "--pulls" || a == "-p" {
-				filter = "is:pr"
-			}
-			if a == "--all" || a == "-a" {
-				filter = ""
-			}
-
-			// default with just hashi repos. If we wwant all, clear the filter list
-			if a == "--all" || a == "-a" {
-				repoNameFilter = []string{}
-			}
-
-			if strings.Contains(a, "--type") || strings.Contains(a, "-t") {
-				parts := strings.Split(a, "=")
-				// parts 0 is "--users" or "-u"
-				if len(parts) > 1 && parts[1] == "a" || parts[1] == "all" {
-					repoNameFilter = []string{}
-				} else {
-					log.Printf("no filter user given")
-				}
+			if a == "-e" || a == "-expired" {
+				expired = true
 			}
 		}
 	}
@@ -154,17 +137,24 @@ func (c WaitingCommand) Run(args []string) int {
 	for _, s := range parts {
 		sopt := &github.SearchOptions{Sort: "updated"}
 
-		// find 72 hours ago
 		now := time.Now()
-		threeDaysAgo := now.AddDate(0, 0, -3)
-		// intent is to not show items that you just flagged as waiting-reply
-		threeHoursAgo := now.Add(-time.Hour * 1)
-
-		// golang reference time
-		// Mon Jan 2 15:04:05 -0700 MST 2006
+		var updatedFilter string
+		if expired {
+			// find 14 days ago
+			daysAgo := now.AddDate(0, 0, -14)
+			updatedFilter = fmt.Sprintf("updated:<=%s", daysAgo.Format("2006-01-02"))
+		} else {
+			// find 72 hours ago
+			threeDaysAgo := now.AddDate(0, 0, -3)
+			// intent is to not show items that you just flagged as waiting-reply
+			threeHoursAgo := now.Add(-time.Hour * 1)
+			// golang reference time
+			// Mon Jan 2 15:04:05 -0700 MST 2006
+			updatedFilter = fmt.Sprintf("updated:%s..%s", threeDaysAgo.Format("2006-01-02"), threeHoursAgo.Format("2006-01-02T15:04:05"))
+		}
 
 		for {
-			searchStr := fmt.Sprintf("state:open label:waiting-response %s %s updated:%s..%s", s, filter, threeDaysAgo.Format("2006-01-02"), threeHoursAgo.Format("2006-01-02T15:04:05"))
+			searchStr := fmt.Sprintf("state:open label:waiting-response %s %s %s", s, filter, updatedFilter)
 			// log.Printf("\ns: %s\n", searchStr)
 			sresults, resp, err := client.Search.Issues(ctx, searchStr, sopt)
 			if err != nil {
