@@ -116,7 +116,7 @@ Examples:
 }
 
 func (c PRsCommand) Synopsis() string {
-	return "Synopsis - todo"
+	return "List PRs opened by Terraform team, Collaborators, or specific users"
 }
 
 func (c PRsCommand) Run(args []string) int {
@@ -228,6 +228,11 @@ func (c PRsCommand) Run(args []string) int {
 		}
 		ml = newList
 	}
+
+	// Remove Martin and Bardin FOR NOW b/c they tend to have each other review
+	// PRs regularly
+	delete(ml, "apparentlymart")
+	delete(ml, "jbardin")
 
 	// combine all the members into a single author string so we only hit GitHub
 	// search once
