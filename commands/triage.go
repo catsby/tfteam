@@ -57,7 +57,7 @@ Examples:
 
 // Synopsis should do something, but it doesn't
 func (c TriageCommand) Synopsis() string {
-	return "Synopsis - todo"
+	return "List issues from Terraform* repositories with no label"
 }
 
 // searchResult wraps the result of a search done concurrently

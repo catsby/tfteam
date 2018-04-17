@@ -42,8 +42,7 @@ Options:
 
 // Synopsis should do something, but it doesn't
 func (c WaitingCommand) Synopsis() string {
-	return `Show issues that have the 'waiting-response' label that were updated
-	in the past 72 hours`
+	return `Show issues that have the 'waiting-response' label`
 }
 
 // waitinSearchResult wraps the result of a search done concurrently

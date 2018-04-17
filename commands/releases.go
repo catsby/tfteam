@@ -26,7 +26,7 @@ func (c ReleasesCommand) Help() string {
 }
 
 func (c ReleasesCommand) Synopsis() string {
-	return "Synopsis - todo"
+	return "List providers by last release date based on GitHub tag"
 }
 
 // This was just RepoRelease in the begining, but our release process doesn't

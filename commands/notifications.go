@@ -28,7 +28,11 @@ func (c NotificationsCommand) Help() string {
 }
 
 func (c NotificationsCommand) Synopsis() string {
-	return "Synopsis - todo"
+	synopsisText := `
+Aggregate GitHub notifications for Terraform* repositories, filtering out
+			notifications that have a reply from a HashiCorp colleague
+`
+	return strings.TrimSpace(synopsisText)
 }
 
 type NotificationIssue struct {
