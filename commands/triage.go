@@ -35,6 +35,8 @@ Options:
 
 	--pulls, -p        Only list Pull Requests 
 
+	--repository, -r        Only list items from these repositories. Comma seperated
+
 	--type, -t         Provider type to search: 
                              - "[a]ll" - every provider in terraform-providers
                              - "[h]ashi" - hashicorp ones: vault, nomad, aws, gcp, azure, consul 
@@ -82,7 +84,7 @@ func (c TriageCommand) Run(args []string) int {
 	client := github.NewClient(tc)
 
 	// by default, only show issues
-	repoNameFilter := []string{
+	repoTypeFilter := []string{
 		"terraform-providers/terraform-provider-aws",
 		"terraform-providers/terraform-provider-azurerm",
 		"terraform-providers/terraform-provider-consul",
@@ -93,26 +95,44 @@ func (c TriageCommand) Run(args []string) int {
 		"terraform-providers/terraform-provider-vault",
 		"terraform-providers/terraform-provider-vsphere",
 	}
+
+	// filter out to only use these specific repos
+	// where -t / --type filters by type (all, hashicorp, community), -r filters
+	// further to specific named repos
+	repoNameFilter := []string{}
+
 	filter := "is:issue"
+
 	if len(args) > 0 {
 		for _, a := range args {
 			if a == "--pulls" || a == "-p" {
 				filter = "is:pr"
 			}
+
 			if a == "--all" || a == "-a" {
 				filter = ""
 			}
 
+			if strings.Contains(a, "--repositories") || strings.Contains(a, "-r") {
+				parts := strings.Split(a, "=")
+				// parts 0 is "--users" or "-u"
+				if len(parts) > 1 {
+					repoNameFilter = strings.Split(parts[1], ",")
+				} else {
+					log.Printf("no repo filter given")
+				}
+			}
+
 			// default with just hashi repos. If we wwant all, clear the filter list
 			if a == "--all" || a == "-a" {
-				repoNameFilter = []string{}
+				repoTypeFilter = []string{}
 			}
 
 			if strings.Contains(a, "--type") || strings.Contains(a, "-t") {
 				parts := strings.Split(a, "=")
 				// parts 0 is "--users" or "-u"
 				if len(parts) > 1 && parts[1] == "a" || parts[1] == "all" {
-					repoNameFilter = []string{}
+					repoTypeFilter = []string{}
 				} else {
 					log.Printf("no filter user given")
 				}
@@ -121,7 +141,7 @@ func (c TriageCommand) Run(args []string) int {
 	}
 
 	// only get org repos if we aren't filtering
-	if len(repoNameFilter) == 0 {
+	if len(repoTypeFilter) == 0 {
 		// get list of repositories across terraform-repositories
 		// TODO: this was copy-pasta'd from commands/releases.go
 		nopt := &github.RepositoryListByOrgOptions{
@@ -146,22 +166,49 @@ func (c TriageCommand) Run(args []string) int {
 			if !*r.HasIssues {
 				continue
 			}
-			repoNameFilter = append(repoNameFilter, "terraform-providers/"+*r.Name)
+			repoTypeFilter = append(repoTypeFilter, "terraform-providers/"+*r.Name)
 		}
 	}
 
-	// cut the string in half and search 2x b/c github search was barfing on one
-	// giant string
-	half := len(repoNameFilter) / 2
-	p1 := repoNameFilter[:half]
-	p2 := repoNameFilter[half:]
+	// apply repo filter
+	if len(repoNameFilter) > 0 {
+		var reposFiltered []string
+		for _, rn := range repoNameFilter {
+			for _, r := range repoTypeFilter {
+				if strings.Contains(r, rn) {
+					reposFiltered = append(reposFiltered, r)
+				}
+			}
+		}
 
-	// repoStr := "repo:"
-	repoStr := "repo:"
+		if len(reposFiltered) > 0 {
+			repoTypeFilter = reposFiltered
+		}
+	}
 
-	repoStr1 := repoStr + strings.Join(p1, " repo:")
-	repoStr2 := repoStr + strings.Join(p2, " repo:")
-	parts := []string{repoStr1, repoStr2}
+	// If the number of repos is larger than 10 (arbitrary), cut the string in
+	// half and search 2x b/c github search was barfing on one giant string
+
+	// collect search string parts
+	var parts []string
+	if len(repoTypeFilter) > 10 {
+		// this logic is ugly and needs to be refactored, but it's a hack job that
+		// does it for now
+		half := len(repoTypeFilter) / 2
+		p1 := repoTypeFilter[:half]
+		p2 := repoTypeFilter[half:]
+
+		// repoStr := "repo:"
+		repoStr := "repo:"
+
+		repoStr1 := repoStr + strings.Join(p1, " repo:")
+		repoStr2 := repoStr + strings.Join(p2, " repo:")
+		parts = []string{repoStr1, repoStr2}
+	} else {
+		repoStr := "repo:"
+		repoStr1 := repoStr + strings.Join(repoTypeFilter, " repo:")
+		parts = []string{repoStr1}
+	}
 
 	var issues []github.Issue
 
@@ -228,13 +275,20 @@ type report struct {
 	Results         map[string][]github.Issue
 }
 
-const templ = `Count of Repos with unlabled issues: {{.RepoCount}}
-Total unlabeled issue count: {{.TotalIssueCount}}
-{{range .SortedKeys}}----------
+const templ = `
+Results: 
+{{range .SortedKeys}}
 
 {{.}} ({{. | repoIssueCount}})
 {{. | issueList}}
-{{end}}`
+{{end}}
+
+----------
+
+Count of Repos with unlabled issues: {{.RepoCount}}
+Total unlabeled issue count: {{.TotalIssueCount}}
+
+`
 
 func issueList(key string) string {
 	l := resultsMap[key]
