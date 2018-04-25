@@ -273,6 +273,11 @@ func (c PRsCommand) Run(args []string) int {
 			}
 		}
 
+		// filter out this test repo
+		if strings.Contains(*i.HTMLURL, "hashibot-test/terraform-provider-archive") {
+			continue
+		}
+
 		var repo string
 		var owner string
 		u, err := url.Parse(*i.HTMLURL)
