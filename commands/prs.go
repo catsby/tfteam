@@ -409,7 +409,7 @@ func (c PRsCommand) Run(args []string) int {
 							continue
 						}
 					}
-					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", pr.IsApprovedString(), pr.CreatedAt.Format("Mon Jan 2 15:04:05 MST 2006"), strings.TrimPrefix(pr.Repo, "terraform-"), pr.TitleTruncated(), pr.HTMLURL))
+					fmt.Fprintln(w, fmt.Sprintf("%s  %s  %s  %s  %s", pr.IsApprovedString(), pr.CreatedAt.Format("Mon 01/02/2006"), strings.TrimPrefix(pr.Repo, "terraform-provider-"), pr.TitleTruncated(), pr.HTMLURL))
 				}
 				fmt.Fprintln(w)
 			}
