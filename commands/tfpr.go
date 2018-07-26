@@ -20,6 +20,15 @@ type TFPr struct {
 	UpdatedAt *time.Time
 }
 
+// A collection of PRs that can be sorted
+type TFPRGroup []*TFPr
+
+func (t TFPRGroup) Len() int      { return len(t) }
+func (t TFPRGroup) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
+func (t TFPRGroup) Less(i, j int) bool {
+	return !t[i].CreatedAt.After(*t[j].CreatedAt)
+}
+
 func (tfpr *TFPr) IsApprovedString() string {
 	approved := "   "
 	if "APPROVED" == tfpr.State {

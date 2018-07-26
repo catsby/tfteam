@@ -350,6 +350,8 @@ func (c PRsCommand) Run(args []string) int {
 		}
 		fmt.Fprintln(w, tableFormat)
 		for _, k := range keys {
+			// sort by created at date
+			sort.Sort(TFPRGroup(rl[k]))
 			for _, pr := range rl[k] {
 				// there's better logic here for this kind of sort, using > and the
 				// ordering of the status, but I'm going on like 4 hours of sleep so
@@ -388,6 +390,8 @@ func (c PRsCommand) Run(args []string) int {
 				// if we're filtering out to just show waiting ones, make sure we have
 				// some
 				var waitingCount int
+				// sort by created at date
+				sort.Sort(TFPRGroup(rl[k]))
 				for _, pr := range rl[k] {
 					if filter != pr.StatusCode() {
 						continue
