@@ -24,7 +24,18 @@ type NotificationsCommand struct {
 }
 
 func (c NotificationsCommand) Help() string {
-	return "Help - todo"
+	helpText := `
+Usage: tfteam notifications
+
+	Aggregate GitHub notifications for Terraform* repositories, filtering out
+	notifications that have a reply from a HashiCorp colleague
+
+Options:
+
+	None yet
+
+`
+	return helpText
 }
 
 func (c NotificationsCommand) Synopsis() string {
