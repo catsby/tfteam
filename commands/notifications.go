@@ -25,15 +25,15 @@ type NotificationsCommand struct {
 
 func (c NotificationsCommand) Help() string {
 	helpText := `
-Usage: tfteam notifications
+Usage: tfteam notifications [options]
 
 	Aggregate GitHub notifications for Terraform* repositories, filtering out
 	notifications that have a reply from a HashiCorp colleague
 
 Options:
 
-	None yet
-
+	--cleanup        Mark all issues and prs as 'read' if they are closed. 
+                         Considers merged prs as closed.
 `
 	return helpText
 }
