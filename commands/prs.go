@@ -25,24 +25,31 @@ var includeUsers []string
 var filterUsers []string
 var tableFormat bool
 
+// PRReviewStatus maps to status, defined below
 type PRReviewStatus uint
+
+const (
+	statusAll PRReviewStatus = iota
+	statusWaiting
+	statusComments
+	statusChanges
+	statusApproved
+)
 
 var filter PRReviewStatus
 
-const tfTeamId = 1836975
+// tfteam
+//const tfTeamID = 1836975
 
-const (
-	StatusAll PRReviewStatus = iota
-	StatusWaiting
-	StatusComments
-	StatusChanges
-	StatusApproved
-)
+// vault team
+const tfTeamID = 1836984
 
+// PRsCommand command for querying PRs and status by team, person, etc
 type PRsCommand struct {
 	UI cli.Ui
 }
 
+// Help lists usage syntax
 func (c PRsCommand) Help() string {
 	helpText := `
 Usage: tfteam prs [options] 
@@ -115,10 +122,12 @@ Examples:
 	return strings.TrimSpace(helpText)
 }
 
+// Synopsis shows a synopsis in the top level help
 func (c PRsCommand) Synopsis() string {
 	return "List PRs opened by Terraform team, Collaborators, or specific users"
 }
 
+// Run PRs query with args
 func (c PRsCommand) Run(args []string) int {
 	key := os.Getenv("GITHUB_API_TOKEN")
 	if key == "" {
@@ -144,7 +153,7 @@ func (c PRsCommand) Run(args []string) int {
 				tableFormat = true
 			}
 			if a == "--waiting" || a == "-w" {
-				filter = StatusWaiting
+				filter = statusWaiting
 			}
 			if a == "--all" || a == "-a" {
 				all = true
@@ -177,7 +186,7 @@ func (c PRsCommand) Run(args []string) int {
 	if !collaborators || all {
 		opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
 		// TODO check pagination
-		teamMembers, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamId, opt)
+		teamMembers, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamID, opt)
 		if err != nil {
 			fmt.Println("Error: ", err)
 			os.Exit(1)
@@ -333,7 +342,7 @@ func (c PRsCommand) Run(args []string) int {
 		}
 
 		var keys []string
-		for k, _ := range rl {
+		for k := range rl {
 			keys = append(keys, k)
 		}
 
@@ -345,7 +354,7 @@ func (c PRsCommand) Run(args []string) int {
 		// change table format to remove status column if we're just looking at
 		// waiting reviews
 		tableFormat := "Status\tCreated At\tRepo\tAuthor\tTitle\tLink"
-		if filter == StatusWaiting {
+		if filter == statusWaiting {
 			tableFormat = "Repo\tAuthor\tTitle\tLink"
 		}
 		fmt.Fprintln(w, tableFormat)
@@ -361,7 +370,7 @@ func (c PRsCommand) Run(args []string) int {
 						continue
 					}
 				}
-				if filter == StatusWaiting {
+				if filter == statusWaiting {
 					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s", strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
 				} else {
 					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
@@ -377,7 +386,7 @@ func (c PRsCommand) Run(args []string) int {
 		}
 		// sort Team members by Alpha order sorry vancluever
 		var keys []string
-		for k, _ := range rl {
+		for k := range rl {
 			keys = append(keys, k)
 		}
 
@@ -399,7 +408,7 @@ func (c PRsCommand) Run(args []string) int {
 					waitingCount++
 				}
 
-				if filter == StatusWaiting && waitingCount == 0 {
+				if filter == statusWaiting && waitingCount == 0 {
 					continue
 				}
 				fmt.Fprintln(w, k)
@@ -424,6 +433,7 @@ func (c PRsCommand) Run(args []string) int {
 	return 0
 }
 
+// ByReviewDate implements the Sort interface for a slice of PullRequstReviews
 type ByReviewDate []*github.PullRequestReview
 
 func (a ByReviewDate) Len() int      { return len(a) }
