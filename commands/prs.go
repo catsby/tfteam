@@ -272,7 +272,8 @@ func (c PRsCommand) Run(args []string) int {
 	for _, i := range issues {
 		// sneak some other related projects in. This cascading if statements look
 		// hilarious
-		if !strings.Contains(*i.HTMLURL, "terraform") {
+		if !strings.Contains(*i.HTMLURL, "vault") {
+			// if !strings.Contains(*i.HTMLURL, "terraform") {
 			if !strings.Contains(*i.HTMLURL, "tfteam") {
 				if !strings.Contains(*i.HTMLURL, "engservices-teamcity") {
 					if !strings.Contains(*i.HTMLURL, "tf-deploy") {

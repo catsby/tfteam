@@ -27,7 +27,7 @@ func (c NotificationsCommand) Help() string {
 	helpText := `
 Usage: tfteam notifications [options]
 
-	Aggregate GitHub notifications for Terraform* repositories, filtering out
+	Aggregate GitHub notifications for vault* repositories, filtering out
 	notifications that have a reply from a HashiCorp colleague
 
 Options:
@@ -40,7 +40,7 @@ Options:
 
 func (c NotificationsCommand) Synopsis() string {
 	synopsisText := `
-Aggregate GitHub notifications for Terraform* repositories, filtering out
+Aggregate GitHub notifications for vault* repositories, filtering out
 			notifications that have a reply from a HashiCorp colleague
 `
 	return strings.TrimSpace(synopsisText)
@@ -59,7 +59,7 @@ type NotificationIssue struct {
 }
 
 func (n *NotificationIssue) String() string {
-	return fmt.Sprintf("%s - https://github.com/%s/%s/issues/%d", n.Title, n.Owner, n.Name, n.Number)
+	return fmt.Sprintf("https://github.com/%s/%s/issues/%d \t\t - %s", n.Owner, n.Name, n.Number, n.Title)
 }
 
 func (n *NotificationIssue) Repo() string {
@@ -109,9 +109,9 @@ func (c NotificationsCommand) Run(args []string) int {
 
 	// NotificationIssues to look for
 	var nIssues []*NotificationIssue
-	// Filter out PRs/Issues that aren't involving Terraform
+	// Filter out PRs/Issues that aren't involving vault
 	for _, n := range notifications {
-		if !strings.Contains(*n.Repository.Name, "terraform") {
+		if !strings.Contains(*n.Repository.Name, "vault") {
 			if !strings.Contains(*n.Repository.Name, "tfteam") {
 				continue
 			}
@@ -228,7 +228,7 @@ func (c NotificationsCommand) Run(args []string) int {
 
 	// sort repoIssueMap by Alpha order for consistent
 	var keys []string
-	for k, _ := range repoIssueMap {
+	for k := range repoIssueMap {
 		keys = append(keys, k)
 	}
 
@@ -302,17 +302,15 @@ func getReviewStatus(notificationsChan <-chan *NotificationIssue, rChan chan<- *
 
 			// should be dynamic but I'm lazy at this particular moment
 			teamMembers := []string{
-				"mitchellh",
-				"apparentlymart",
-				"jbardin",
-				"phinze",
-				"paddycarver",
+				"briankassouf",
 				"catsby",
-				"radeksimko",
-				"tombuildsstuff",
-				"grubernaut",
-				"mbfrahry",
-				"vancluever",
+				"chrishoffman",
+				"jefferai",
+				"kalafut",
+				"meirish",
+				"ncabatoff",
+				"tyrannosaurus-becks",
+				"vishalnayak",
 			}
 
 			for _, comment := range comments {

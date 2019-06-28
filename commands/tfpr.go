@@ -6,6 +6,7 @@ import (
 	"github.com/google/go-github/github"
 )
 
+// TFPr is a struct that holds PR information that we need for display
 type TFPr struct {
 	*github.User
 	HTMLURL string
@@ -20,7 +21,7 @@ type TFPr struct {
 	UpdatedAt *time.Time
 }
 
-// A collection of PRs that can be sorted
+// TFPRGroup implements sorting interface
 type TFPRGroup []*TFPr
 
 func (t TFPRGroup) Len() int      { return len(t) }
@@ -29,6 +30,7 @@ func (t TFPRGroup) Less(i, j int) bool {
 	return !t[i].CreatedAt.After(*t[j].CreatedAt)
 }
 
+// IsApprovedString generates a table friendly string of approval
 func (tfpr *TFPr) IsApprovedString() string {
 	approved := "   "
 	if "APPROVED" == tfpr.State {
@@ -43,16 +45,17 @@ func (tfpr *TFPr) IsApprovedString() string {
 	return approved
 }
 
+// StatusCode clean up the status
 func (tfpr *TFPr) StatusCode() PRReviewStatus {
-	status := StatusWaiting
+	status := statusWaiting
 	if "APPROVED" == tfpr.State {
-		status = StatusApproved
+		status = statusApproved
 	}
 	if "COMMENTED" == tfpr.State {
-		status = StatusComments
+		status = statusComments
 	}
 	if "CHANGES_REQUESTED" == tfpr.State {
-		status = StatusChanges
+		status = statusChanges
 	}
 	return status
 }

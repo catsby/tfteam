@@ -286,7 +286,7 @@ func getLatestRelease(reposChan <-chan *RepoReleaseTag, rChan chan<- *RepoReleas
 		// have true "releases"
 		commit, _, err := client.Git.GetCommit(ctx, n.Owner, n.Name, *tag.Commit.SHA)
 		if err != nil {
-			log.Printf("Error getting commit infor for (%s/%s) tag (%s): %s", n.Owner, n.Name, *tag.Commit.SHA)
+			log.Printf("Error getting commit infor for (%s/%s) tag (%s): %s", n.Owner, n.Name, *tag.Commit.SHA, err)
 		}
 		n.Date = commit.Author.Date
 

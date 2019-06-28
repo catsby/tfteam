@@ -27,7 +27,7 @@ func (c TriageCommand) Help() string {
 	helpText := `
 Usage: tfteam triage [options] 
 	
-	List unlabeld issues from terraform-providers org from the past 24 hours. 
+	List unlabeld issues from hashicorp org from the past 24 hours. 
 
 Options:
 
@@ -38,7 +38,7 @@ Options:
 	--repository, -r        Only list items from these repositories. Comma seperated
 
 	--type, -t         Provider type to search: 
-                             - "[a]ll" - every provider in terraform-providers
+                             - "[a]ll" - every provider in hashicorp
                              - "[h]ashi" - hashicorp ones: vault, nomad, aws, gcp, azure, consul 
                              - "[c]ommunity" - (all - hashi) # doesn't work yet
                          
@@ -85,15 +85,8 @@ func (c TriageCommand) Run(args []string) int {
 
 	// by default, only show issues
 	repoTypeFilter := []string{
-		"terraform-providers/terraform-provider-aws",
-		"terraform-providers/terraform-provider-azurerm",
-		"terraform-providers/terraform-provider-consul",
-		"terraform-providers/terraform-provider-google",
-		"terraform-providers/terraform-provider-kubernetes",
-		"terraform-providers/terraform-provider-nomad",
-		"terraform-providers/terraform-provider-opc",
-		"terraform-providers/terraform-provider-vault",
-		"terraform-providers/terraform-provider-vsphere",
+		"hashicorp/vault",
+		"hashicorp/vault-plugin-auth-kubernetes",
 	}
 
 	// filter out to only use these specific repos
@@ -149,7 +142,7 @@ func (c TriageCommand) Run(args []string) int {
 		}
 		var repos []*github.Repository
 		for {
-			part, resp, err := client.Repositories.ListByOrg(ctx, "terraform-providers", nopt)
+			part, resp, err := client.Repositories.ListByOrg(ctx, "hashicorp", nopt)
 
 			if err != nil {
 				c.UI.Warn(fmt.Sprintf("Error listing Repositories: %s", err))
@@ -166,7 +159,7 @@ func (c TriageCommand) Run(args []string) int {
 			if !*r.HasIssues {
 				continue
 			}
-			repoTypeFilter = append(repoTypeFilter, "terraform-providers/"+*r.Name)
+			repoTypeFilter = append(repoTypeFilter, "hashicorp/"+*r.Name)
 		}
 	}
 
@@ -232,7 +225,7 @@ func (c TriageCommand) Run(args []string) int {
 	fmt.Printf("Results count: %d\n\n", len(issues))
 
 	for _, i := range issues {
-		key := strings.TrimPrefix(*i.RepositoryURL, "https://api.github.com/repos/terraform-providers/")
+		key := strings.TrimPrefix(*i.RepositoryURL, "https://api.github.com/repos/hashicorp/")
 		resultsMap[key] = append(resultsMap[key], i)
 	}
 
