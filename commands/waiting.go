@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/mitchellh/cli"
+	"github.com/y0ssar1an/q"
 )
 
 // WaitingCommand represents the go-cli command
@@ -68,15 +69,16 @@ func (c WaitingCommand) Run(args []string) int {
 
 	// by default, only show issues
 	repoNameFilter := []string{
-		"terraform-providers/terraform-provider-aws",
-		"terraform-providers/terraform-provider-azurerm",
-		"terraform-providers/terraform-provider-consul",
-		"terraform-providers/terraform-provider-google",
-		"terraform-providers/terraform-provider-kubernetes",
-		"terraform-providers/terraform-provider-nomad",
-		"terraform-providers/terraform-provider-opc",
-		"terraform-providers/terraform-provider-vault",
-		"terraform-providers/terraform-provider-vsphere",
+		"hashicorp/vault",
+		// "terraform-providers/terraform-provider-aws",
+		// "terraform-providers/terraform-provider-azurerm",
+		// "terraform-providers/terraform-provider-consul",
+		// "terraform-providers/terraform-provider-google",
+		// "terraform-providers/terraform-provider-kubernetes",
+		// "terraform-providers/terraform-provider-nomad",
+		// "terraform-providers/terraform-provider-opc",
+		// "terraform-providers/terraform-provider-vault",
+		// "terraform-providers/terraform-provider-vsphere",
 	}
 	filter := "is:issue"
 	var expired bool
@@ -120,16 +122,19 @@ func (c WaitingCommand) Run(args []string) int {
 
 	// cut the string in half and search 2x b/c github search was barfing on one
 	// giant string
-	half := len(repoNameFilter) / 2
-	p1 := repoNameFilter[:half]
-	p2 := repoNameFilter[half:]
+	// half := len(repoNameFilter) / 2
+	// p1 := repoNameFilter[:half]
+	// p2 := repoNameFilter[half:]
 
+	// // repoStr := "repo:"
 	// repoStr := "repo:"
-	repoStr := "repo:"
 
-	repoStr1 := repoStr + strings.Join(p1, " repo:")
-	repoStr2 := repoStr + strings.Join(p2, " repo:")
-	parts := []string{repoStr1, repoStr2}
+	// repoStr1 := repoStr + strings.Join(p1, " repo:")
+	// repoStr2 := repoStr + strings.Join(p2, " repo:")
+	// parts := []string{repoStr1, repoStr2}
+	parts := []string{"repo:hashicorp/vault"}
+
+	q.Q(parts)
 
 	var issues []github.Issue
 
@@ -140,20 +145,20 @@ func (c WaitingCommand) Run(args []string) int {
 		var updatedFilter string
 		if expired {
 			// find 14 days ago
-			daysAgo := now.AddDate(0, 0, -14)
+			daysAgo := now.AddDate(0, 0, -30)
 			updatedFilter = fmt.Sprintf("updated:<=%s", daysAgo.Format("2006-01-02"))
 		} else {
-			// find 72 hours ago
-			threeDaysAgo := now.AddDate(0, 0, -3)
-			// intent is to not show items that you just flagged as waiting-reply
-			threeHoursAgo := now.Add(-time.Hour * 1)
-			// golang reference time
-			// Mon Jan 2 15:04:05 -0700 MST 2006
-			updatedFilter = fmt.Sprintf("updated:%s..%s", threeDaysAgo.Format("2006-01-02"), threeHoursAgo.Format("2006-01-02T15:04:05"))
+			// // find 72 hours ago
+			// threeDaysAgo := now.AddDate(0, 0, -3)
+			// // intent is to not show items that you just flagged as waiting-reply
+			// threeHoursAgo := now.Add(-time.Hour * 1)
+			// // golang reference time
+			// // Mon Jan 2 15:04:05 -0700 MST 2006
+			// updatedFilter = fmt.Sprintf("updated:%s..%s", threeDaysAgo.Format("2006-01-02"), threeHoursAgo.Format("2006-01-02T15:04:05"))
 		}
 
 		for {
-			searchStr := fmt.Sprintf("state:open label:waiting-response %s %s %s", s, filter, updatedFilter)
+			searchStr := fmt.Sprintf("state:open label:waiting-for-response %s %s %s", s, filter, updatedFilter)
 			// log.Printf("\ns: %s\n", searchStr)
 			sresults, resp, err := client.Search.Issues(ctx, searchStr, sopt)
 			if err != nil {
