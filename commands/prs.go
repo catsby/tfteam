@@ -25,7 +25,10 @@ var includeUsers []string
 var filterUsers []string
 var listFormat bool
 var empty bool
-var searchTeamID string
+
+// hard coded to vault eco for now
+// var searchTeamID string
+var searchTeamID int64
 
 // tfteam
 //const tfTeamID = 1836975
@@ -36,11 +39,27 @@ const tfTeamID = 1836984
 type PRReviewStatus uint
 
 const (
-	statusWaiting PRReviewStatus = iota
+	statusNone PRReviewStatus = iota
+	statusWaiting
 	statusComments
 	statusChanges
 	statusApproved
 )
+
+func (p PRReviewStatus) String() string {
+	stat := "none"
+	switch p {
+	case statusWaiting:
+		stat = "waiting"
+	case statusComments:
+		stat = "comments"
+	case statusChanges:
+		stat = "changes"
+	case statusApproved:
+		stat = "approved"
+	}
+	return stat
+}
 
 var filter PRReviewStatus
 
@@ -83,7 +102,7 @@ Options:
 	--list, -t                Show the output in a single list, sorted by
 	                           repository
 
-	--team, -t                Show PRs for a specific Team
+	--team, -t                Show PRs for a specific Team # doesn't work, just searches vault eco
 
 	--empty, -e                Show only PRs that have 'no description'
 
@@ -162,6 +181,8 @@ func (c PRsCommand) Run(args []string) int {
 				listFormat = true
 			}
 			if a == "--team" || a == "-t" {
+				// hardcode to vault eco
+				searchTeamID = 3562035
 				parts := strings.Split(a, "=")
 				// parts 0 is "--users" or "-u"
 				if len(parts) > 1 {
@@ -208,12 +229,15 @@ func (c PRsCommand) Run(args []string) int {
 	// 	}
 	// }
 
+	if searchTeamID == 0 {
+		searchTeamID = tfTeamID
+	}
 	var members []*github.User
 	// refactor, this is boilerplate
 	if !collaborators || all {
 		opt := &github.OrganizationListTeamMembersOptions{Role: "all"}
 		// TODO check pagination
-		teamMembers, _, err := client.Organizations.ListTeamMembers(ctx, tfTeamID, opt)
+		teamMembers, _, err := client.Organizations.ListTeamMembers(ctx, searchTeamID, opt)
 		if err != nil {
 			fmt.Println("Error: ", err)
 			os.Exit(1)
@@ -264,11 +288,6 @@ func (c PRsCommand) Run(args []string) int {
 		}
 		ml = newList
 	}
-
-	// Remove Martin and Bardin FOR NOW b/c they tend to have each other review
-	// PRs regularly
-	delete(ml, "apparentlymart")
-	delete(ml, "jbardin")
 
 	// combine all the members into a single author string so we only hit GitHub
 	// search once
@@ -403,7 +422,7 @@ func (c PRsCommand) Run(args []string) int {
 				// ordering of the status, but I'm going on like 4 hours of sleep so
 				// ¯\_(ツ)_/¯
 				if filter > 0 {
-					if filter != pr.StatusCode() {
+					if filter != statusNone && filter != pr.StatusCode() {
 						continue
 					}
 				}
@@ -439,7 +458,7 @@ func (c PRsCommand) Run(args []string) int {
 				// sort by created at date
 				sort.Sort(TFPRGroup(rl[k]))
 				for _, pr := range rl[k] {
-					if filter != pr.StatusCode() {
+					if filter != statusNone && filter != pr.StatusCode() {
 						continue
 					}
 					waitingCount++
