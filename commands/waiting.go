@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v29/github"
 	"github.com/mitchellh/cli"
 	"github.com/y0ssar1an/q"
 )

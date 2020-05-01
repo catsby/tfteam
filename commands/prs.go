@@ -23,26 +23,26 @@ var collaborators bool
 var all bool
 var includeUsers []string
 var filterUsers []string
-var tableFormat bool
+var listFormat bool
+var empty bool
+var searchTeamID string
+
+// tfteam
+//const tfTeamID = 1836975
+// vault team
+const tfTeamID = 1836984
 
 // PRReviewStatus maps to status, defined below
 type PRReviewStatus uint
 
 const (
-	statusAll PRReviewStatus = iota
-	statusWaiting
+	statusWaiting PRReviewStatus = iota
 	statusComments
 	statusChanges
 	statusApproved
 )
 
 var filter PRReviewStatus
-
-// tfteam
-//const tfTeamID = 1836975
-
-// vault team
-const tfTeamID = 1836984
 
 // PRsCommand command for querying PRs and status by team, person, etc
 type PRsCommand struct {
@@ -80,13 +80,17 @@ Options:
 
 	--waiting, -w              Only show pull requests that have no reviews
 	
-	--table, -t                Show the output in a single table, sorted by
+	--list, -t                Show the output in a single list, sorted by
 	                           repository
+
+	--team, -t                Show PRs for a specific Team
+
+	--empty, -e                Show only PRs that have 'no description'
 
 
 Examples:
 
-  $ tfteam prs -t          // Show Team member PRs, in a single table    						 
+  $ tfteam prs -t          // Show Team member PRs, in a single list    						 
   Status  Repo                    Author          Title        Link
   +      repositories            paddycarver     Something    https://github
          terraform               jbardin         [WIP] Input  https://github
@@ -142,6 +146,8 @@ func (c PRsCommand) Run(args []string) int {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
+	// temp holder for team name
+	// var teamName string
 	// if -c or --collaborators, call orgs/tf-providers/outside_collaborators
 	// and append non-junk users to ml slice above
 	if len(args) > 0 {
@@ -149,8 +155,20 @@ func (c PRsCommand) Run(args []string) int {
 			if a == "--collaborators" || a == "-c" {
 				collaborators = true
 			}
-			if a == "--table" || a == "-t" {
-				tableFormat = true
+			if a == "--empty" || a == "-e" {
+				empty = true
+			}
+			if a == "--list" || a == "-l" {
+				listFormat = true
+			}
+			if a == "--team" || a == "-t" {
+				parts := strings.Split(a, "=")
+				// parts 0 is "--users" or "-u"
+				if len(parts) > 1 {
+					// teamName = parts[1]
+				} else {
+					log.Printf("no team given")
+				}
 			}
 			if a == "--waiting" || a == "-w" {
 				filter = statusWaiting
@@ -180,6 +198,15 @@ func (c PRsCommand) Run(args []string) int {
 	}
 
 	ml := make(map[string]string)
+
+	// get team by name if given
+	// if teamName != "" {
+	// 	teamMembers, _, err := client.Organizations.GetTeam(ctx, tfTeamID, opt)
+	// 	if err != nil {
+	// 		fmt.Println("Error: ", err)
+	// 		os.Exit(1)
+	// 	}
+	// }
 
 	var members []*github.User
 	// refactor, this is boilerplate
@@ -260,7 +287,16 @@ func (c PRsCommand) Run(args []string) int {
 			c.UI.Warn(fmt.Sprintf("Error Searching Issues: %s", err))
 			return 1
 		}
-		issues = append(issues, sresults.Issues...)
+		if !empty {
+			issues = append(issues, sresults.Issues...)
+		} else {
+			// only look up PRs that have no description
+			for _, i := range sresults.Issues {
+				if i.Body == nil || *i.Body == "" {
+					issues = append(issues, i)
+				}
+			}
+		}
 		if resp.NextPage == 0 {
 			break
 		}
@@ -335,7 +371,7 @@ func (c PRsCommand) Run(args []string) int {
 	wgPrs.Wait()
 	close(resultsChan)
 
-	if tableFormat {
+	if listFormat {
 		// convert results into a map of users/user prs for sorting
 		rl := make(map[string][]*TFPr)
 		for r := range resultsChan {
@@ -352,13 +388,13 @@ func (c PRsCommand) Run(args []string) int {
 		w := new(tabwriter.Writer)
 		// w.Init(os.Stdout, 5, 2, 1, '\t', 0)
 		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
-		// change table format to remove status column if we're just looking at
+		// change list format to remove status column if we're just looking at
 		// waiting reviews
-		tableFormat := "Status\tCreated At\tRepo\tAuthor\tTitle\tLink"
+		listFormat := "Status\tCreated At\tRepo\tAuthor\tTitle\tLink"
 		if filter == statusWaiting {
-			tableFormat = "Repo\tAuthor\tTitle\tLink"
+			listFormat = "Repo\tAuthor\tTitle\tLink"
 		}
-		fmt.Fprintln(w, tableFormat)
+		fmt.Fprintln(w, listFormat)
 		for _, k := range keys {
 			// sort by created at date
 			sort.Sort(TFPRGroup(rl[k]))
@@ -378,7 +414,7 @@ func (c PRsCommand) Run(args []string) int {
 				}
 			}
 		}
-		w.Flush()
+		_ = w.Flush()
 	} else {
 		// User format
 		rl := make(map[string][]*TFPr)
@@ -427,7 +463,7 @@ func (c PRsCommand) Run(args []string) int {
 				}
 				fmt.Fprintln(w)
 			}
-			w.Flush()
+			_ = w.Flush()
 		}
 	}
 
@@ -441,6 +477,14 @@ func (a ByReviewDate) Len() int      { return len(a) }
 func (a ByReviewDate) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByReviewDate) Less(i, j int) bool {
 	// return *a[i].SubmittedAt > *a[j].SubmittedAt
+	if a[j].SubmittedAt == nil {
+		return true
+	}
+
+	if a[i].SubmittedAt == nil {
+		return false
+	}
+	// fall through - weird
 	return a[j].SubmittedAt.Before(*a[i].SubmittedAt)
 }
 

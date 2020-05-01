@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v29/github"
 	"github.com/mitchellh/cli"
 )
 
@@ -85,14 +85,14 @@ func (c TriageCommand) Run(args []string) int {
 
 	// by default, only show issues
 	repoTypeFilter := []string{
-		"hashicorp/vault",
-		"hashicorp/vault-plugin-auth-kubernetes",
+		// "hashicorp/vault",
+		// "hashicorp/vault-plugin-auth-kubernetes",
 	}
 
 	// filter out to only use these specific repos
 	// where -t / --type filters by type (all, hashicorp, community), -r filters
 	// further to specific named repos
-	repoNameFilter := []string{}
+	repoNameFilter := []string{"vault"}
 
 	filter := "is:issue"
 
