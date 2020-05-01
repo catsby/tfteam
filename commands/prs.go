@@ -187,8 +187,9 @@ func (c PRsCommand) Run(args []string) int {
 				// parts 0 is "--users" or "-u"
 				if len(parts) > 1 {
 					// teamName = parts[1]
-				} else {
-					log.Printf("no team given")
+					// } else {
+					// TODO remove hard code
+					// 	log.Printf("no team given")
 				}
 			}
 			if a == "--waiting" || a == "-w" {
