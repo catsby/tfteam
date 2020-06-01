@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/go-github/github"
@@ -19,6 +21,21 @@ type TFPr struct {
 
 	CreatedAt *time.Time
 	UpdatedAt *time.Time
+}
+
+var nowish = time.Now()
+
+// TimeAgoHumanized returns a "humanized" version of "time ago", just to
+// emphasize how old a PR is. If less than 24 hours, then this is returned as "X
+// hours ago". If greater than 24 hours, then returned as "days ago".
+func (pr *TFPr) TimeAgoHumanized() string {
+	since := nowish.Sub(*pr.CreatedAt)
+	hours := since.Hours()
+	if hours > 24.0 {
+		days := math.Floor(hours / 24.0)
+		return fmt.Sprintf("%d days ago", int(days))
+	}
+	return fmt.Sprintf("%d hours ago", int(hours))
 }
 
 // TFPRGroup implements sorting interface
