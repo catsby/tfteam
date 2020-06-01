@@ -32,15 +32,15 @@ func (t TFPRGroup) Less(i, j int) bool {
 
 // IsApprovedString generates a table friendly string of approval
 func (tfpr *TFPr) IsApprovedString() string {
-	approved := "   "
+	approved := "[ ]   "
 	if "APPROVED" == tfpr.State {
-		approved = "+  "
+		approved = "[+]  "
 	}
 	if "COMMENTED" == tfpr.State {
-		approved = "?  "
+		approved = "[?]  "
 	}
 	if "CHANGES_REQUESTED" == tfpr.State {
-		approved = "-  "
+		approved = "[-]  "
 	}
 	return approved
 }

@@ -77,10 +77,10 @@ Usage: tfteam prs [options]
 	status of the pull request, author, repo, title, and link.
 
 	Pull requests are in 1 of 4 states: 
-          - " " No review 
-          - "+  " Reviewed, Approved!
-          - "?  " Reviewed, with Comments
-          - "-  " Reviewed, with Changes requested
+          - "[ ]  " No review 
+          - "[+]  " Reviewed, Approved!
+          - "[?]  " Reviewed, with Comments
+          - "[-]  " Reviewed, with Changes requested
 
 	If no arguments are given, list just pull requests  and their status for
 	Terraform OSS team members only, grouped by user.
