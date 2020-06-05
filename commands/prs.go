@@ -99,7 +99,7 @@ Options:
 
 	--waiting, -w              Only show pull requests that have no reviews
 	
-	--list, -t                Show the output in a single list, sorted by
+	--list, -l                Show the output in a single list, sorted by
 	                           repository
 
 	--team, -t                Show PRs for a specific Team # doesn't work, just searches vault eco
@@ -427,10 +427,11 @@ func (c PRsCommand) Run(args []string) int {
 						continue
 					}
 				}
+				// pr.CreatedAt.Format("Mon 01/02/2006")
 				if filter == statusWaiting {
-					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s", strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
+					fmt.Fprintln(w, fmt.Sprintf("%s\tt%s\t%s\t%s", strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
 				} else {
-					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", pr.IsApprovedString(), strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
+					fmt.Fprintln(w, fmt.Sprintf("%s\t%s (%s)\t%s\t%s\t%s\t%s", pr.IsApprovedString(), pr.CreatedAt.Format("Mon 01/02/2006"), pr.TimeAgoHumanized(), strings.TrimPrefix(k, "terraform-"), *pr.User.Login, pr.TitleTruncated(), pr.HTMLURL))
 				}
 			}
 		}
